@@ -1,0 +1,198 @@
+<gel:script 
+ xmlns:core="jelly:core" 
+    xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
+    xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:sql="jelly:sql"
+    xmlns:xog="http://www.niku.com/xog"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
+    xmlns:util="jelly:util"
+    xmlns:q="http://www.niku.com/xog/Query">
+	
+	<core:set var="vFound">0</core:set>
+	
+	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
+
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Start Script"/>
+		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="debug" message=">>Persisted XOG URL  : ${XOGURL}"/> 
+		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/> 
+		<gel:log level="debug" message=">>Persisted SessionID: ${sessionID}"/> 
+		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
+	</core:if>
+
+    <gel:setDataSource dbId="Niku"/>
+	
+	<!-- This is the XML Root Document-->
+	<gel:parse var="v_xml_root">
+		<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
+			<Header version="8.0" action="read" objectType="contentPack" externalSource="NIKU">
+				<args contentType="menu" name="order_by_1" value="code"/>
+				<args name="singleContentType" value="menu"/>
+				<args name="no_dependencies" value="true"/>
+			</Header>
+			<MenuQuery>
+				<Filter name="code" criteria="EQUALS">application</Filter>
+			</MenuQuery>
+		</NikuDataBus>
+	</gel:parse>
+			
+	<sql:query escapeText="false" var="vProject">
+		select PACKAGING_PATH from odf_ca_stproj_project
+		Where id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vProject.rowsByIndex}" var="row">
+		<core:set var="vPackagingPath">${row[0]}</core:set>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
+		</core:if>
+	</core:forEach>
+
+	<!-- Calling XOG-->
+	<core:catch var="v_xog_exception">
+		<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+			<soap:message>
+				<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+					<soapenv:Header>
+						<xog:Auth>
+							<xog:SessionID>${sessionID}</xog:SessionID>
+						</xog:Auth>
+					</soapenv:Header>
+					<soapenv:Body>
+						<gel:include select="$v_xml_root/NikuDataBus"/>
+					</soapenv:Body>
+				</soapenv:Envelope>
+			</soap:message>
+		</soap:invoke>
+	</core:catch>
+			
+	<!-- Creating NEW Menu XML from scratch -->
+	<gel:parse var="v_xml_new">
+		<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_contentPack.xsd">
+			<Header action="write" externalSource="NIKU" objectType="contentPack" version="8.0"/>
+			<contentPack update="true">
+				<menus update="true">
+				</menus>
+			</contentPack>
+		</NikuDataBus>
+	</gel:parse>
+
+	<!-- Adding MenuInstance general Data-->
+	<gel:set var="vMIcode" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/menus/menu/@code" asString="true"/>
+	<gel:set var="vMIsource" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/menus/menu/@source" asString="true"/>
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="vMIcode: ${vMIcode}"/> 
+		<gel:log level="debug" message="vMIsource: ${vMIsource}"/> 
+	</core:if>
+	
+	<gel:parse var="vMenuInstance">
+		<menu code="${vMIcode}" source="${vMIsource}" update="true">
+		</menu>
+	</gel:parse>
+	
+	<!-- Adding MenuInstance NLS Data-->
+	<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/menus/menu/nls" var="vNLS">
+		<gel:set select="$vMenuInstance/menu" value="${vNLS}" insert="true"/>
+	</gel:forEach>
+	<sql:query escapeText="false" var="vElements">
+		select Distinct PAC.ACTION_CODE, PMI.ID 
+		from odf_ca_stproj_element SE, cmn_menu_items MI, cmn_actions AC, CMN_MENU_ITEMS PMI, CMN_ACTIONS PAC 
+		where AC.action_code = SE.ELEMENT_ID
+		and MI.ACTION_ID = AC.ID 
+		AND PMI.ID = MI.PARENT_MENU_ID 
+		AND PAC.ID = PMI.ACTION_ID
+		AND SE.element_type = 'Menu'
+		and SE.odf_parent_id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vElements.rowsByIndex}" var="row">
+		<core:set var="vSectionID">${row[0]}</core:set>
+		<core:set var="vSectionIntID">${row[1]}</core:set>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vSectionID: ${vSectionID} vSectionIntID: ${vSectionIntID}"/> 
+		</core:if>
+
+		<core:set var="vFound">1</core:set>
+
+		<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/menus/menu/section" var="vSection">
+			<gel:set select="$vSection/@code" var="vSectionCode" asString="true"/>
+			<core:if test="${vSectionID == vSectionCode}">
+				<!-- Adding SectionInstance general Data-->
+				<gel:set var="vSEposition" select="$vSection/@position" asString="true"/>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vSEposition: ${vSEposition}"/> 
+				</core:if>
+			
+				<gel:parse var="vSectionInstance">
+					<section code="${vSectionCode}" position="${vSEposition}" update="true">
+					</section>
+				</gel:parse>
+				
+				<!-- Adding Section NLS Data-->
+				<gel:forEach select="$vSection/nls" var="vNLS">
+					<gel:set select="$vSectionInstance/section" value="${vNLS}" insert="true"/>
+				</gel:forEach>
+
+				<sql:query escapeText="false" var="vElements2">
+					select AC.ACTION_CODE
+					from odf_ca_stproj_element SE, cmn_menu_items MI, cmn_actions AC
+					where AC.action_code = SE.ELEMENT_ID
+					and MI.ACTION_ID = AC.ID 
+					AND MI.PARENT_MENU_ID = ${vSectionIntID}
+					AND SE.element_type = 'Menu'
+					AND SE.ODF_PARENT_ID = ${vStudioProjectID}
+				</sql:query>
+				<core:forEach items="${vElements2.rowsByIndex}" var="row">
+					<core:set var="vMenuItemID">${row[0]}</core:set>
+					<core:if test="${DebugLevel &gt; 1}">
+						<gel:log level="debug" message="vMenuItemID: ${vMenuItemID}"/> 
+					</core:if>
+
+					<gel:forEach select="$vSection/link" var="vLink">
+						<gel:set select="$vLink/@pageCode" var="vLinkCode" asString="true"/>
+						<core:if test="${vMenuItemID == vLinkCode}">
+	
+							<!-- Adding LinkInstance general Data-->
+							<gel:set var="vPGposition" select="$vLink/@position" asString="true"/>
+							<gel:set var="vPGsource" select="$vLink/@pageSource" asString="true"/>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vPGposition: ${vPGposition}"/> 
+								<gel:log level="debug" message="vPGsource: ${vPGsource}"/> 
+							</core:if>
+			
+							<gel:parse var="vLinkInstance">
+								<link pageCode="${vLinkCode}" pageSource="${vPGsource}" position="${vPGposition}" update="true">
+								</link>
+							</gel:parse>	
+						
+							<!-- Adding Link NLS Data-->
+							<gel:forEach select="$vLink/nls" var="vNLS">
+								<gel:set select="$vLinkInstance/link" value="${vNLS}" insert="true"/>
+							</gel:forEach>
+							<gel:set select="$vSectionInstance/section" value="${vLinkInstance}" insert="true"/>
+						</core:if>
+					</gel:forEach>
+				</core:forEach>
+				<gel:set select="$vMenuInstance/menu" value="${vSectionInstance}" insert="true"/>
+			</core:if>
+		</gel:forEach>
+	</core:forEach>
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:serialize var="${vMenuInstance}" fileName="${XOGlogFolder}/12-Menu_Instance.xml"/>
+		<gel:serialize var="${v_xml_new}" fileName="${XOGlogFolder}/12-Menu_RootVar.xml"/>
+	</core:if>
+	<gel:set select="$v_xml_new/NikuDataBus/contentPack/menus" value="${vMenuInstance}" insert="true"/>
+
+	<core:if test="${vFound == 1}">
+			
+		<!--Genereting Final OUTPUT -->
+		<gel:serialize var="${v_xml_new}" fileName="${vPackagingPath}/12-Menu.xml"/>
+		<core:if test="${DebugLevel &gt; 0}">
+			<gel:log level="debug" message="Final Output File: ${vPackagingPath}\12-Menu.xml"/> 
+		</core:if>
+	</core:if>
+			
+</gel:script>

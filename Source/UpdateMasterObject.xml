@@ -1,0 +1,51 @@
+<gel:script 
+ xmlns:core="jelly:core" 
+    xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
+    xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:sql="jelly:sql"
+    xmlns:xog="http://www.niku.com/xog"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
+    xmlns:util="jelly:util"
+    xmlns:q="http://www.niku.com/xog/Query">
+
+	<core:set var="DebugLevel">2</core:set>
+	<core:set var="vFound">0</core:set>
+	
+	<core:set var="vStudioElementID" value="${gel_objectInstanceId}"/>
+
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Start Script"/>
+		<gel:log level="debug" message="Studio Element: ${vStudioElementID}"/> 
+		<gel:log level="debug" message="ProcessInstance: ${gel_processInstanceId}"/>
+	</core:if>
+
+    <gel:setDataSource dbId="Niku"/>
+
+	<core:set var="vMasterObjectCode" value=""/>
+	<sql:query escapeText="false" var="vElement">
+		select OO.parent_object_code 
+		from odf_objects OO, odf_ca_stproj_element se
+		where se.id = ${vStudioElementID}
+		and oo.code = se.element_id and se.element_type='SubObject'
+	</sql:query>
+	<core:forEach items="${vElement.rowsByIndex}" var="row">
+		<core:set var="vMasterObjectCode">${row[0]}</core:set>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="MasterObject: ${vMasterObjectCode}"/>
+		</core:if>
+	</core:forEach>
+	
+	<sql:update>
+		UPDATE ODF_CA_STPROJ_ELEMENT SET master_object='${vMasterObjectCode}'
+		Where id = ${vStudioElementID} and element_type='SubObject'
+	</sql:update>
+	<sql:update>
+		UPDATE ODF_CA_STPROJ_ELEMENT SET master_object=''
+		Where id = ${vStudioElementID} and element_type!='SubObject'
+	</sql:update>
+</gel:script>
+

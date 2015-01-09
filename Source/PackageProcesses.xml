@@ -1,0 +1,102 @@
+<gel:script 
+ xmlns:core="jelly:core" 
+    xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
+    xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:sql="jelly:sql"
+    xmlns:xog="http://www.niku.com/xog"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
+    xmlns:util="jelly:util"
+    xmlns:q="http://www.niku.com/xog/Query">
+	
+	<core:set var="vFound">0</core:set>
+	
+	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Start Script"/>
+		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="debug" message=">>Persisted XOG URL  : ${XOGURL}"/> 
+		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/> 
+		<gel:log level="debug" message=">>Persisted SessionID: ${sessionID}"/> 
+		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
+	</core:if>
+
+    <gel:setDataSource dbId="Niku"/>
+	
+	<!-- This is the XML Root Document-->
+	<gel:parse var="v_xml_root">
+		<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
+			<Header version="8.0" action="read" objectType="contentPack" externalSource="NIKU">
+				<args contentType="process" name="order_by_1" value="code"/>
+				<args name="singleContentType" value="process"/>
+				<args name="no_dependencies" value="true"/>
+			</Header>
+		</NikuDataBus>
+	</gel:parse>
+			
+	<sql:query escapeText="false" var="vProject">
+		select PACKAGING_PATH from odf_ca_stproj_project
+		Where id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vProject.rowsByIndex}" var="row">
+		<core:set var="vPackagingPath">${row[0]}</core:set>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
+		</core:if>
+	</core:forEach>
+			
+	<sql:query escapeText="false" var="vElements">
+		select ELEMENT_ID from odf_ca_stproj_element
+		where element_type = 'Process'
+		and odf_parent_id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vElements.rowsByIndex}" var="row">
+		<core:set var="vElementID">${row[0]}</core:set>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vElementID: ${vElementID}"/> 
+		</core:if>
+
+		<core:set var="vFound">1</core:set>
+		<gel:parse var="vElementInstance">
+			<ProcessQuery>
+				<Filter name="code" criteria="EQUALS">${vElementID}</Filter>
+			</ProcessQuery>
+		</gel:parse>
+		<gel:set select="$v_xml_root/NikuDataBus" value="${vElementInstance}" insert="true"/>
+	</core:forEach>
+
+	<core:if test="${vFound == 1}">
+		<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_07-Processes_${vStudioProjectID}.xml"/>
+		</core:if>
+
+		<!-- Calling XOG-->
+		<core:catch var="v_xog_exception">
+			<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+				<soap:message>
+					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+						<soapenv:Header>
+							<xog:Auth>
+								<xog:SessionID>${sessionID}</xog:SessionID>
+							</xog:Auth>
+						</soapenv:Header>
+						<soapenv:Body>
+							<gel:include select="$v_xml_root/NikuDataBus"/>
+						</soapenv:Body>
+					</soapenv:Envelope>
+				</soap:message>
+			</soap:invoke>
+		</core:catch>
+			
+		<!--Genereting Final OUTPUT -->
+		<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
+		<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/07-Processes.xml"/>
+		<core:if test="${DebugLevel &gt; 0}">
+			<gel:log level="debug" message="Final Output File: ${vPackagingPath}/07-Processes.xml"/> 
+		</core:if>
+	</core:if>
+</gel:script>

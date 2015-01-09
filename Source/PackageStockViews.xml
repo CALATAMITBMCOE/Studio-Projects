@@ -1,0 +1,201 @@
+<gel:script 
+ xmlns:core="jelly:core" 
+    xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
+    xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:sql="jelly:sql"
+    xmlns:xog="http://www.niku.com/xog"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
+    xmlns:util="jelly:util"
+    xmlns:q="http://www.niku.com/xog/Query">
+	
+	<core:set var="vFound">0</core:set>
+	
+	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Start Script"/>
+		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="debug" message=">>Persisted XOG URL  : ${XOGURL}"/> 
+		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/> 
+		<gel:log level="debug" message=">>Persisted SessionID: ${sessionID}"/> 
+		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
+	</core:if>
+
+    <gel:setDataSource dbId="Niku"/>
+	
+	<sql:query escapeText="false" var="vProject">
+		select PACKAGING_PATH from odf_ca_stproj_project
+		Where id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vProject.rowsByIndex}" var="row">
+		<core:set var="vPackagingPath">${row[0]}</core:set>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
+		</core:if>
+	</core:forEach>
+
+	<!-- Packaging StockObjectViews derived from StockObjects -->
+	<sql:query escapeText="false" var="vElements">
+		select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property','property','invalid') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTOORDER
+		from odf_ca_stproj_element E 
+			inner join ODF_VIEWS OV on OV.object_code = E.element_id 
+			left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
+		where element_type in ('StockObject','StockSubObject')
+		and odf_parent_id = ${vStudioProjectID}
+		and ov.view_type in ('property','filter')
+		order by E.ELEMENT_ID, VIEWTYPE, PARTOORDER, OV.PARTITION_CODE
+	</sql:query>
+	<core:forEach items="${vElements.rowsByIndex}" var="row">
+		<!-- This is the XML Root Document-->
+		<core:set var="vObjectCode" value="${row[0]}"/>
+		<core:set var="vViewCode" value="${row[1]}"/>
+		<core:set var="vPartitionCode" value="${row[2]}"/>
+		<core:set var="vPartitionOrdr" value="${row[3]}"/>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vObjectCode   : ${vObjectCode}"/> 
+			<gel:log level="debug" message="vViewCode     : ${vViewCode}"/> 
+			<gel:log level="debug" message="vPartitionCode: ${vPartitionCode}"/> 
+			<gel:log level="debug" message="vPartitionOrdr: ${vPartitionOrdr}"/> 
+		</core:if>
+
+		<gel:parse var="v_xml_root">
+			<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
+				<Header version="8.0" action="read" objectType="contentPack" externalSource="NIKU">
+					<args contentType="object" name="order_by_1" value="code"/>
+					<args name="singleContentType" value="view"/>
+					<args name="no_dependencies" value="true"/>
+				</Header>
+			</NikuDataBus>
+		</gel:parse>
+
+		<gel:parse var="vElementInstance">
+			<ViewQuery>
+				<Filter name="object_code" criteria="EQUALS">${vObjectCode}</Filter>
+				<Filter name="code" criteria="EQUALS">${vViewCode}</Filter>
+				<Filter name="partition_code" criteria="EQUALS">${vPartitionCode}</Filter>
+			</ViewQuery>
+		</gel:parse>
+		
+		<gel:set select="$v_xml_root/NikuDataBus" value="${vElementInstance}" insert="true"/>
+		<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_${vStudioProjectID}.xml"/>
+		</core:if>
+	
+		<!-- Calling XOG-->
+		<core:catch var="v_xog_exception">
+			<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+				<soap:message>
+					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+						<soapenv:Header>
+							<xog:Auth>
+								<xog:SessionID>${sessionID}</xog:SessionID>
+							</xog:Auth>
+						</soapenv:Header>
+						<soapenv:Body>
+							<gel:include select="$v_xml_root/NikuDataBus"/>
+						</soapenv:Body>
+					</soapenv:Envelope>
+				</soap:message>
+			</soap:invoke>
+		</core:catch>
+			
+		<!--Generating Final OUTPUT -->
+		<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
+		<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml"/>
+		<core:if test="${DebugLevel &gt; 0}">
+			<gel:log level="debug" message="Final Output File: ${vPackagingPath}\06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml"/> 
+		</core:if>
+	</core:forEach>
+
+	<!-- Packaging StockObjectViews explicitly declared as Elements -->
+	<sql:query escapeText="false" var="vElements">
+		select X.ELEMENT_ID, X.VIEWTYPE, X.PARTITION_CODE, X.PARTORDER
+		from	
+			(select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property','property','invalid') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTORDER
+			from odf_ca_stproj_element E 
+				inner join ODF_VIEWS OV on OV.object_code = E.element_id 
+				left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
+			where element_type = 'StockObjectPropertiesView'
+			and odf_parent_id = ${vStudioProjectID}
+			and ov.view_type = 'property'
+			and ((ov.partition_code = E.ST_ELEM_VIEW_PART) or (E.ST_ELEM_VIEW_PART is null))
+			UNION
+			select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property','property','invalid') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTORDER
+			from odf_ca_stproj_element E 
+				inner join ODF_VIEWS OV on OV.object_code = E.element_id 
+				left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
+			where element_type = 'StockObjectListView'
+			and odf_parent_id = ${vStudioProjectID}
+			and ov.view_type = 'filter'
+			and ((ov.partition_code = E.ST_ELEM_VIEW_PART) or (E.ST_ELEM_VIEW_PART is null))
+		) X
+		order by X.ELEMENT_ID, X.VIEWTYPE, X.PARTORDER, X.PARTITION_CODE
+	</sql:query>
+	<core:forEach items="${vElements.rowsByIndex}" var="row">
+		<!-- This is the XML Root Document-->
+		<core:set var="vObjectCode" value="${row[0]}"/>
+		<core:set var="vViewCode" value="${row[1]}"/>
+		<core:set var="vPartitionCode" value="${row[2]}"/>
+		<core:set var="vPartitionOrdr" value="${row[3]}"/>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vObjectCode   : ${vObjectCode}"/> 
+			<gel:log level="debug" message="vViewCode     : ${vViewCode}"/> 
+			<gel:log level="debug" message="vPartitionCode: ${vPartitionCode}"/> 
+			<gel:log level="debug" message="vPartitionOrdr: ${vPartitionOrdr}"/> 
+		</core:if>
+
+		<gel:parse var="v_xml_root">
+			<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
+				<Header version="8.0" action="read" objectType="contentPack" externalSource="NIKU">
+					<args contentType="object" name="order_by_1" value="code"/>
+					<args name="singleContentType" value="view"/>
+					<args name="no_dependencies" value="true"/>
+				</Header>
+			</NikuDataBus>
+		</gel:parse>
+
+		<gel:parse var="vElementInstance">
+			<ViewQuery>
+				<Filter name="object_code" criteria="EQUALS">${vObjectCode}</Filter>
+				<Filter name="code" criteria="EQUALS">${vViewCode}</Filter>
+				<Filter name="partition_code" criteria="EQUALS">${vPartitionCode}</Filter>
+			</ViewQuery>
+		</gel:parse>
+		
+		<gel:set select="$v_xml_root/NikuDataBus" value="${vElementInstance}" insert="true"/>
+		<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_${vStudioProjectID}.xml"/>
+		</core:if>
+	
+		<!-- Calling XOG-->
+		<core:catch var="v_xog_exception">
+			<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+				<soap:message>
+					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+						<soapenv:Header>
+							<xog:Auth>
+								<xog:SessionID>${sessionID}</xog:SessionID>
+							</xog:Auth>
+						</soapenv:Header>
+						<soapenv:Body>
+							<gel:include select="$v_xml_root/NikuDataBus"/>
+						</soapenv:Body>
+					</soapenv:Envelope>
+				</soap:message>
+			</soap:invoke>
+		</core:catch>
+			
+		<!--Generating Final OUTPUT -->
+		<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
+		<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml"/>
+		<core:if test="${DebugLevel &gt; 0}">
+			<gel:log level="debug" message="Final Output File: ${vPackagingPath}\06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml"/> 
+		</core:if>
+	</core:forEach>	
+	
+</gel:script>

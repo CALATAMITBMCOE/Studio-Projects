@@ -1,0 +1,5 @@
+	<core:set var="vStudioProjectID" value="5000001"/>
+	<core:set var="DebugLevel" value="2"/>
+	<core:set var="XOGURL" value="http://localhost"/>
+	<core:set var="XOGlogFolder" value="c:/clarity/logs"/>
+	<core:set var="sessionID" value="6757451__801c710:120260b91c7:-7e791237595707888"/>

@@ -1,0 +1,2057 @@
+<gel:script 
+ xmlns:core="jelly:core" 
+    xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
+    xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:sql="jelly:sql"
+    xmlns:xog="http://www.niku.com/xog"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
+    xmlns:util="jelly:util"
+    xmlns:q="http://www.niku.com/xog/Query">
+	
+    <gel:parameter default="admin" var="XOGUsername"/>
+    <gel:parameter default="c" var="XOGPassword"/>
+
+	<core:set var="DebugLevel">0</core:set>
+	<gel:persist var="DebugLevel" value="${DebugLevel}" scope="INSTANCE"/>
+
+	<core:set var="vFound">0</core:set>
+	
+	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
+
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Start Script"/>	
+		<gel:log level="debug" message="Studio Project: ${vStudioProjectID}"/> 
+	</core:if>
+
+    <gel:setDataSource dbId="Niku"/>
+
+	<core:invokeStatic var="config" className="com.niku.union.config.ConfigurationManager" method="getInstance"/>
+	<core:set var="vInstallDirInput" value="${config.getProperties().getDirectories().getInstallDir()}"/>
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="vInstallDirInput :  ${vInstallDirInput}"/>
+	</core:if>
+	
+	<core:new className="java.lang.String" var="InputString" >
+		<core:arg type="java.lang.String" value="${vInstallDirInput}" />
+	</core:new>
+
+	<core:invoke var="vInstallDir" on="${InputString}" method="replace">
+		<core:arg type="char" value="\"/>
+		<core:arg type="char" value="/"/>
+	</core:invoke>
+	
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="vInstallDir :  ${vInstallDir}"/>
+	</core:if>
+
+	<core:set var="XOGlogFolder" value="${vInstallDir}/logs"/>
+	<core:if test="${DebugLevel &gt; 1}">
+		<core:set var="dir_to_create" value="${vInstallDir}/webroot/temp/StudioProjects"/>
+		<util:file name="${dir_to_create}" var="foldervar" />
+		<core:set var="FolderExists" value="${foldervar.exists()}"/>
+		<core:if test="${FolderExists == true}">
+			<core:set var="listOfFiles" value="${foldervar.listFiles()}" />
+			<core:forEach items="${listOfFiles}" var="row">
+				<core:set var="vFile">${row}</core:set>
+				<util:file name="${vFile}" var="filevar" />
+				<core:set var="deleteDone" value="${filevar.delete()}" />
+			</core:forEach>
+			<core:set var="deleteDone" value="${foldervar.delete()}" />
+		</core:if>
+		<core:set var="CreateDirDone" value="${foldervar.mkdirs()}" />
+		<core:set var="XOGlogFolder" value="${vInstallDir}/webroot/temp/StudioProjects"/>
+	</core:if>
+
+	<core:set var="schedulerUrl" value="${config.getProperties().getWebServer().getSchedulerUrl()}"/>
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="schedulerUrl: ${schedulerUrl}"/> 
+	</core:if>
+	
+	<!-- Gets ID from Instance 0-->
+    <core:set var="WebServerid" value="${config.getProperties().getWebServer().getWebServerInstance(0).getId()}"/>
+	<!-- Tests if Instance 0 is app - then gets instance 0 data -->
+	<core:if test="${WebServerid == 'app'}">
+        <core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(0).getEntryUrl()}"/>
+	</core:if>
+	<!-- Tests if Instance 0 is nsa - then gets instance 1 data -->
+	<core:if test="${WebServerid == 'nsa'}">
+        <core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(1).getEntryUrl()}"/>
+	</core:if>
+
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="WebServerid: ${WebServerid}"/> 
+		<gel:log level="debug" message="entryUrl: ${entryUrl}"/> 
+	</core:if>
+
+	<!-- Not sure whether I should use entryUrl -->
+	<core:set var="XOGURL" value="${entryUrl}"/>
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="XOGURL: ${XOGURL}"/> 
+		<gel:log level="debug" message="XOGlogFolder: ${XOGlogFolder}"/> 
+	</core:if>
+		
+	<sql:query escapeText="false" var="vProject">
+		select INITIALS, CODE, PARTITION_CODE, NAME
+		from odf_ca_stproj_project
+		Where id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vProject.rowsByIndex}" var="row">
+		<core:set var="vProjectInitials">${row[0]}</core:set>
+		<core:set var="vProjectCode">${row[1]}</core:set>
+		<core:set var="vStudio_Part">${row[2]}</core:set>
+		<core:set var="vStudioProjectName">${row[3]}</core:set>
+	</core:forEach>
+
+    <!-- Log in to XOG-->
+    <soap:invoke endpoint="${XOGURL}/niku/xog" var="auth">
+        <soap:message>
+            <soapenv:Envelope
+                xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+                <soapenv:Header/>
+                <soapenv:Body>
+                    <xog:Login>
+                        <xog:Username>${XOGUsername}</xog:Username>
+                        <xog:Password>${XOGPassword}</xog:Password>
+                    </xog:Login>
+                </soapenv:Body>
+            </soapenv:Envelope>
+        </soap:message>
+    </soap:invoke>
+    <gel:set asString="true"
+        select="$auth/soapenv:Envelope/soapenv:Body/xog:SessionID/text()" var="sessionID"/>
+    <core:choose>
+        <!-- Check XOG sessionID -->
+        <core:when test="${sessionID == null}">
+            <gel:out>[XOG]Couldn't Log in to XOG. Verify the username/password.</gel:out>
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:log category="XOG" level="ERROR">Couldn't Log in to XOG. Please verify the username/password.</gel:log>
+			</core:if>
+        </core:when>
+        <core:otherwise>
+            <!-- XOG if session ID is valid -->
+            <!-- Login successful - BEGIN GEL LOGIC  -->
+            <gel:out>[XOG] XOG Login Successful. ${sessionID}.</gel:out>
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:log category="XOG" level="debug">[XOG] XOG Login Successful. ${sessionID}.</gel:log>
+			</core:if>
+			
+			<sql:update>
+				delete from ODF_CA_STPROJ_ELEMENT
+				Where odf_parent_id = ${vStudioProjectID}
+				AND is_autodiscovered = 1
+			</sql:update>
+
+            <soap:invoke endpoint="${XOGURL}/niku/xog" var="v_xml_root">
+                <soap:message>
+                    <soapenv:Envelope
+                        xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+                        <soapenv:Header>
+                            <xog:Auth>
+                                <xog:SessionID>${sessionID}</xog:SessionID>
+                            </xog:Auth>
+                        </soapenv:Header>
+                        <soapenv:Body>
+                            <NikuDataBus
+                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
+                                <Header action="read"
+                                    externalSource="NIKU"
+                                    objectType="customObjectInstance" version="8.0"/>
+                                <CustomObjectInstanceQuery>
+                                    <Filter criteria="EQUALS" name="objectCode">stproj_project</Filter>
+                                    <Filter criteria="EQUALS" name="instanceCode">${vProjectCode}</Filter>
+                                </CustomObjectInstanceQuery>
+                            </NikuDataBus>
+                        </soapenv:Body>
+                    </soapenv:Envelope>
+                </soap:message>
+            </soap:invoke>
+
+
+            <!-- Finding StaticLookups using ProjectInitials  -->
+			<core:set var="vElementType">StaticLookup</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select LOV.LOOKUP_TYPE_CODE, CAP.NAME from cmn_list_of_values LOV, cmn_lookup_types LKP, cmn_captions_nls CAP
+				where upper(LOV.LOOKUP_TYPE_CODE) like upper('${vProjectInitials}%')
+				AND LOV.LOOKUP_SOURCE_CODE != 'LOOKUP_SOURCE_DYNAMIC'
+				AND LOV.LOOKUP_TYPE_CODE = LKP.LOOKUP_TYPE
+				AND LKP.ID = CAP.PK_ID
+				AND CAP.LANGUAGE_CODE = 'en'
+				AND CAP.TABLE_NAME = 'CMN_LOOKUP_TYPES'
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementName">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				<!--core:set var="vElementID">SL=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:nmc.lookupOpenCategory&amp;lookup_type=${vElementCode}"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"></ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+
+            <!-- Finding DynamicLookups using ProjectInitials  -->
+			<core:set var="vElementType">DynamicLookup</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select LOV.LOOKUP_TYPE_CODE, CAP.NAME from cmn_list_of_values LOV, cmn_lookup_types LKP, cmn_captions_nls CAP
+				where upper(LOV.LOOKUP_TYPE_CODE) like upper('${vProjectInitials}%')
+				AND LOV.LOOKUP_SOURCE_CODE = 'LOOKUP_SOURCE_DYNAMIC'
+				AND LOV.LOOKUP_TYPE_CODE = LKP.LOOKUP_TYPE
+				AND LKP.ID = CAP.PK_ID
+				AND CAP.LANGUAGE_CODE = 'en'
+				AND CAP.TABLE_NAME = 'CMN_LOOKUP_TYPES'
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementName">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				<!--core:set var="vElementID">DL=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:nmc.lookupOpenCategory&amp;lookup_type=${vElementCode}"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+							<ColumnValue name="master_object"></ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+			
+            <!-- Finding MasterObjects using ProjectInitials, its related pages and dyn lookups  -->
+			<core:set var="vElementType">MasterObject</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select OO.CODE, upper(OO.CODE), CAP.NAME from ODF_OBJECTS OO, CMN_CAPTIONS_NLS CAP
+				where OO.component = 'odf' 
+				and nvl(OO.PARENT_OBJECT_CODE, '?')='?' 
+				AND OO.IS_CUSTOMIZABLE = 1
+				AND UPPER(OO.CODE) like UPPER('${vProjectInitials}%')
+				AND OO.ID = CAP.PK_ID
+				AND CAP.LANGUAGE_CODE = 'en'
+				AND CAP.TABLE_NAME = 'ODF_OBJECTS'
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vUPPERObjectCode">${row[1]}</core:set>
+				<core:set var="vElementName">${row[2]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}//${vUPPERObjectCode}"/> 
+				</core:if>
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+				
+				<!--core:set var="vElementID">MO=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:odf.objectProperties&amp;object=${vElementCode}&amp;component=odf&amp;displayPartition=NIKU.ROOT"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"></ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+
+				<core:set var="vObjectCode" value="${vElementCode}"/>
+				<!-- Adding object-related dynamic Lookups to the project -->
+				<core:set var="vInstancesLookup" value="OBJECT_LOOKUP_${vUPPERObjectCode}"/>
+				<core:set var="vPageLayoutLookup" value="ODF_CST_${vUPPERObjectCode}_PAGE_LAYOUT"/>
+				<core:set var="vElementType">DynamicLookup</core:set>
+				<sql:query escapeText="false" var="vElements">
+					select LOV.LOOKUP_TYPE_CODE, CAP.NAME from cmn_list_of_values LOV, cmn_lookup_types LKP, cmn_captions_nls CAP
+					where LOV.LOOKUP_TYPE_CODE in ('${vInstancesLookup}','${vPageLayoutLookup}')
+					AND LOV.LOOKUP_SOURCE_CODE = 'LOOKUP_SOURCE_DYNAMIC'
+					AND LOV.LOOKUP_TYPE_CODE = LKP.LOOKUP_TYPE
+					AND LKP.ID = CAP.PK_ID
+					AND CAP.LANGUAGE_CODE = 'en'
+					AND CAP.TABLE_NAME = 'CMN_LOOKUP_TYPES'
+				</sql:query>
+				<core:forEach items="${vElements.rowsByIndex}" var="row">
+					<core:set var="vElementCode">${row[0]}</core:set>
+					<core:set var="vElementName">${row[1]}</core:set>
+					<core:if test="${DebugLevel &gt; 1}">
+						<gel:log level="debug" message="${vObjectCode}'s ${vElementType}: ${vElementCode}"/> 
+					</core:if>
+
+
+					<sql:query escapeText="false" var="vAutoNum">
+						select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+						where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+					</sql:query>
+					<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+						<core:set var="vElementID">${row[0]}</core:set>
+						<core:set var="vSchemeID">${row[1]}</core:set>
+					</core:forEach>
+
+					<sql:update>
+						update CMN_AUTONUM_SCHEME_SEGMENTS 
+						set NEXT_VALUE = NEXT_VALUE+1 
+						where scheme_id = ${vSchemeID}
+						and SEGMENT_CODE='NUMERIC'
+					</sql:update>
+					<sql:update>
+						update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+													FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+													WHERE S1.SCHEME_ID = S2.SCHEME_ID
+													AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+													AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+						WHERE ID  = ${vSchemeID}
+					</sql:update>
+					
+					<!-- This is to avoid getting and ID over 30 chars-->
+					<!--core:if test="${vElementCode == vInstancesLookup}">
+						<core:set var="vElementID">DL=OBJINST//${vUPPERObjectCode}</core:set-->
+						<!--core:set var="vElementName">${vElementType}-OBJINST//${vUPPERObjectCode}</core:set-->
+					<!--/core:if>
+					<core:if test="${vElementCode == vPageLayoutLookup}">
+						<core:set var="vElementID">DL=OBJPGLY//${vUPPERObjectCode}</core:set-->
+						<!--core:set var="vElementName">${vElementType}-OBJPGLY//${vUPPERObjectCode}</core:set-->
+					<!--/core:if-->
+					<core:set var="vElementURL" value="/niku/nu#action:nmc.lookupOpenCategory&amp;lookup_type=${vElementCode}"/>
+
+					<gel:parse var="vElementInstance">
+						<instance
+							instanceCode="${vElementID}"
+							objectCode="stproj_element"
+							parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+							<CustomInformation>
+								<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+								<ColumnValue name="name">${vElementName}</ColumnValue>
+								<ColumnValue name="code">${vElementID}</ColumnValue>
+								<ColumnValue name="element_id">${vElementCode}</ColumnValue>
+								<ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+								<ColumnValue name="element_type">${vElementType}</ColumnValue>
+								<ColumnValue name="is_autodiscovered">1</ColumnValue>
+								<ColumnValue name="master_object"></ColumnValue>
+								<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+								<ColumnValue name="element_url_flag">1</ColumnValue>
+							</CustomInformation>
+							<OBSAssocs completed="false"/>
+								<Security>
+									<UserSecurity
+										rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+								</Security>
+						</instance>
+					</gel:parse>
+
+					<!-- Adding the new elements to the project -->
+					<gel:set insert="true"
+						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+				</core:forEach>
+
+				<!-- Adding object-related pages to the project -->
+				<core:set var="vPageObject" value="odf.${vObjectCode}"/>
+				<core:set var="vElementType">Page</core:set>
+
+				<sql:query escapeText="false" var="vElements">
+					select PG.PAGE_CODE, PG.ID, CAP.NAME FROM CMN_PAGES PG, CMN_CAPTIONS_NLS CAP
+					WHERE UPPER(PG.PAGE_CODE) like UPPER('${vPageObject}%Frame')
+					and PG.source='customer'
+                    AND CAP.PK_ID = PG.ID
+                    AND CAP.LANGUAGE_CODE = 'en' 
+                    AND CAP.tABLE_NAME = 'CMN_PAGES'
+				</sql:query>
+				<core:forEach items="${vElements.rowsByIndex}" var="row">
+					<core:set var="vElementCode">${row[0]}</core:set>
+					<core:set var="vElementPageID">${row[1]}</core:set>
+					<core:set var="vElementName">${row[2]}</core:set>
+					<core:if test="${DebugLevel &gt; 1}">
+						<gel:log level="debug" message="${vObjectCode}'s ${vElementType}: ${vElementCode}"/> 
+					</core:if>
+			
+					<sql:query escapeText="false" var="vAutoNum">
+						select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+						where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+					</sql:query>
+					<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+						<core:set var="vElementID">${row[0]}</core:set>
+						<core:set var="vSchemeID">${row[1]}</core:set>
+					</core:forEach>
+
+					<sql:update>
+						update CMN_AUTONUM_SCHEME_SEGMENTS 
+						set NEXT_VALUE = NEXT_VALUE+1 
+						where scheme_id = ${vSchemeID}
+						and SEGMENT_CODE='NUMERIC'
+					</sql:update>
+					<sql:update>
+						update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+													FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+													WHERE S1.SCHEME_ID = S2.SCHEME_ID
+													AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+													AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+						WHERE ID  = ${vSchemeID}
+					</sql:update>
+
+					<core:set var="vElementURL" value="/niku/nu#action:npt.getPage&amp;pageId=${vElementCode}&amp;id=${vElementPageID}&amp;obsType=Page&amp;principal_type=SYSTEM&amp;principal_id=0"/>
+					<!--core:set var="vElementID">PO=${vElementCode}</core:set-->
+					<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+					<gel:parse var="vElementInstance">
+						<instance
+							instanceCode="${vElementID}"
+							objectCode="stproj_element"
+							parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+							<CustomInformation>
+								<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+								<ColumnValue name="name">${vElementName}</ColumnValue>
+								<ColumnValue name="code">${vElementID}</ColumnValue>
+								<ColumnValue name="element_id">${vElementCode}</ColumnValue>
+								<ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+								<ColumnValue name="element_type">${vElementType}</ColumnValue>
+								<ColumnValue name="is_autodiscovered">1</ColumnValue>
+								<ColumnValue name="master_object"></ColumnValue>
+								<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+								<ColumnValue name="element_url_flag">1</ColumnValue>
+							</CustomInformation>
+							<OBSAssocs completed="false"/>
+							<Security>
+								<UserSecurity
+									rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+								</Security>
+						</instance>
+					</gel:parse>
+
+					<!-- Adding the new elements to the project -->
+					<gel:set insert="true"
+						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+				</core:forEach>
+				
+				<!-- Adding object-related MenuItems to the project -->
+				<core:set var="vPageObject" value="odf.${vObjectCode}"/>
+				<core:set var="vElementType">Menu</core:set>
+				<sql:query escapeText="false" var="vElements">
+					select AC.ACTION_CODE, CAP.NAME FROM CMN_ACTIONS AC, CMN_CAPTIONS_NLS CAP
+					WHERE UPPER(AC.ACTION_CODE) like UPPER('${vPageObject}%List')
+                    AND CAP.PK_ID = AC.ID
+                    AND CAP.LANGUAGE_CODE = 'en' 
+                    AND CAP.tABLE_NAME = 'CMN_ACTIONS'
+				</sql:query>
+				<core:forEach items="${vElements.rowsByIndex}" var="row">
+					<core:set var="vElementCode">${row[0]}</core:set>
+					<core:set var="vElementName">${row[1]}</core:set>
+					<core:if test="${DebugLevel &gt; 1}">
+						<gel:log level="debug" message="${vObjectCode}'s ${vElementType}: ${vElementCode}"/> 
+					</core:if>
+
+
+					<sql:query escapeText="false" var="vAutoNum">
+						select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+						where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+					</sql:query>
+					<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+						<core:set var="vElementID">${row[0]}</core:set>
+						<core:set var="vSchemeID">${row[1]}</core:set>
+					</core:forEach>
+
+					<sql:update>
+						update CMN_AUTONUM_SCHEME_SEGMENTS 
+						set NEXT_VALUE = NEXT_VALUE+1 
+						where scheme_id = ${vSchemeID}
+						and SEGMENT_CODE='NUMERIC'
+					</sql:update>
+					<sql:update>
+						update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+													FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+													WHERE S1.SCHEME_ID = S2.SCHEME_ID
+													AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+													AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+						WHERE ID  = ${vSchemeID}
+					</sql:update>
+					
+					<!--core:set var="vElementID">IO=${vElementCode}</core:set-->
+					<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+					<gel:parse var="vElementInstance">
+						<instance
+							instanceCode="${vElementID}"
+							objectCode="stproj_element"
+							parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+							<CustomInformation>
+								<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+								<ColumnValue name="name">${vElementName}</ColumnValue>
+								<ColumnValue name="code">${vElementID}</ColumnValue>
+								<ColumnValue name="element_id">${vElementCode}</ColumnValue>
+								<ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+								<ColumnValue name="element_type">${vElementType}</ColumnValue>
+								<ColumnValue name="is_autodiscovered">1</ColumnValue>
+								<ColumnValue name="master_object"></ColumnValue>
+								<ColumnValue name="element_url_link"></ColumnValue>
+								<ColumnValue name="element_url_flag">0</ColumnValue>
+							</CustomInformation>
+							<OBSAssocs completed="false"/>
+							<Security>
+								<UserSecurity
+									rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+								</Security>
+						</instance>
+					</gel:parse>
+
+					<!-- Adding the new elements to the project -->
+					<gel:set insert="true"
+						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+				</core:forEach>
+
+				<core:set var="vElementType">MasterObject</core:set>
+			</core:forEach>
+
+
+            <!-- Finding SubObjects using ProjectInitials  whose parents are not in the project -->
+			<core:set var="vElementType">SubObject</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select OO.CODE, OO.PARENT_OBJECT_CODE, CAP.NAME from ODF_OBJECTS OO, CMN_CAPTIONS_NLS CAP
+				where OO.component = 'odf' 
+				and nvl(OO.PARENT_OBJECT_CODE, '?')!='?' 
+				AND OO.IS_CUSTOMIZABLE = 1
+				AND UPPER(OO.CODE) like UPPER('${vProjectInitials}%')
+				AND OO.ID = CAP.PK_ID
+				AND CAP.LANGUAGE_CODE = 'en'
+				AND CAP.TABLE_NAME = 'ODF_OBJECTS'
+                AND OO.PARENT_OBJECT_CODE not in (select CODE from ODF_OBJECTS 
+											where component = 'odf' 
+											and nvl(PARENT_OBJECT_CODE, '?')='?' 
+											AND IS_CUSTOMIZABLE = 1
+											AND UPPER(CODE) like UPPER('${vProjectInitials}%'))
+                AND OO.PARENT_OBJECT_CODE not in (select O1.CODE from ODF_OBJECTS O1, ODF_OBJECTS O2
+											where O2.component = 'odf' 
+											and nvl(O2.PARENT_OBJECT_CODE, '?')='?' 
+											AND O2.IS_CUSTOMIZABLE = 1
+											AND UPPER(O2.CODE) like UPPER('${vProjectInitials}%')
+                                            AND O1.component = 'odf' 
+											and O1.PARENT_OBJECT_CODE = O2.CODE
+											AND O1.IS_CUSTOMIZABLE = 1)
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vParentCode">${row[1]}</core:set>
+				<core:set var="vElementName">${row[2]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+					<gel:log level="debug" message="${vParent}: ${vParentCode}"/> 
+				</core:if>
+				
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+					<!--core:set var="vElementID">MO=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:odf.objectProperties&amp;object=${vElementCode}&amp;component=odf&amp;displayPartition=NIKU.ROOT"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object">${vParentCode}</ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+			
+            <!-- Finding Stock Objects with Custom Attributes using ProjectInitials  -->
+			<core:set var="vElementType">StockObject</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select OO.CODE, upper(OO.CODE), CAP.NAME from ODF_OBJECTS OO, CMN_CAPTIONS_NLS CAP
+				where OO.component != 'odf' 
+				and nvl(OO.PARENT_OBJECT_CODE, '?')='?' 
+				AND OO.IS_CUSTOMIZABLE = 1
+				AND OO.ID = CAP.PK_ID
+				AND CAP.LANGUAGE_CODE = 'en'
+				AND CAP.TABLE_NAME = 'ODF_OBJECTS'
+				AND EXISTS (SELECT 'x' from ODF_CUSTOM_ATTRIBUTES CA
+							WHERE UPPER(CA.column_name) LIKE UPPER('${vProjectInitials}%')
+							AND CA.object_name = OO.code)			
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vUPPERObjectCode">${row[1]}</core:set>
+				<core:set var="vElementName">${row[2]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}//${vUPPERObjectCode}"/> 
+				</core:if>
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				<!--core:set var="vElementID">SL=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:odf.objectProperties&amp;object=${vElementCode}&amp;component=odf&amp;displayPartition=NIKU.ROOT"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"/>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+			
+            <!-- Finding Stock SubObjects with Custom Attributes using ProjectInitials  -->
+			<core:set var="vElementType">StockSubObject</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select OO.CODE, upper(OO.CODE), CAP.NAME from ODF_OBJECTS OO, CMN_CAPTIONS_NLS CAP
+				where OO.component != 'odf' 
+				and nvl(OO.PARENT_OBJECT_CODE, '?')!='?' 
+				AND OO.IS_CUSTOMIZABLE = 1
+				AND OO.ID = CAP.PK_ID
+				AND CAP.LANGUAGE_CODE = 'en'
+				AND CAP.TABLE_NAME = 'ODF_OBJECTS'
+				AND EXISTS (SELECT 'x' from ODF_CUSTOM_ATTRIBUTES CA
+							WHERE UPPER(CA.column_name) LIKE UPPER('${vProjectInitials}%')
+							AND CA.object_name = OO.code)			
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vUPPERObjectCode">${row[1]}</core:set>
+				<core:set var="vElementName">${row[2]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}//${vUPPERObjectCode}"/> 
+				</core:if>
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				<!--core:set var="vElementID">SL=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:odf.objectProperties&amp;object=${vElementCode}&amp;component=odf&amp;displayPartition=NIKU.ROOT"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"/>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+
+
+			<!-- DEPRECATED-->
+            <!-- Finding Custom Attributes in Stock Objects using ProjectInitials 
+			<core:set var="vElementType">StockObjectCustAttr</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select CA.COLUMN_NAME, CAP.NAME, CA.OBJECT_NAME, O.ID from ODF_CUSTOM_ATTRIBUTES CA, ODF_OBJECTS O, CMN_CAPTIONS_NLS CAP
+				where upper(CA.column_name) like upper('${vProjectInitials}%')
+				AND O.CODE = CA.OBJECT_NAME 
+				AND O.SOURCE='niku.com'
+				AND CAP.LANGUAGE_CODE = 'en'
+				AND CAP.TABLE_NAME = 'ODF_CUSTOM_ATTRIBUTES'
+				AND CA.ID = CAP.PK_ID
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementName">${row[1]}</core:set>
+				<core:set var="vObjectName">${row[2]}</core:set>
+				<core:set var="vObjectIntID">${row[3]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				<core:set var="vElementURL" value="/niku/nu#action:odf.objectDefinitionAttribute&amp;code=${vElementCode}&amp;partitionCode=NIKU.ROOT&amp;object=${vObjectName}&amp;object_id=${vObjectIntID}"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object">${vObjectName}</ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                  <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach> -->
+
+
+
+            <!-- Finding Processes using ProjectInitials -->
+			<core:set var="vElementType">Process</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select PR.PROCESS_CODE, PV.ID, CAP.NAME FROM BPM_DEF_PROCESSES PR, BPM_DEF_PROCESS_VERSIONS PV, CMN_CAPTIONS_NLS CAP
+				WHERE UPPER(PR.PROCESS_CODE) like UPPER('${vProjectInitials}%')
+				--and PR.source='customer'
+                and PR.ID = PV.PROCESS_ID	
+                AND CAP.PK_ID = PR.ID
+                AND CAP.LANGUAGE_CODE = 'en' 
+                AND CAP.tABLE_NAME = 'BPM_DEF_PROCESSES'
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementProcessID">${row[1]}</core:set>
+				<core:set var="vElementName">${row[2]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				<!--core:set var="vElementID">PR=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:bpm.processDefinitionProperties&amp;process_version_id=${vElementProcessID}&amp;object_type=admin&amp;ui.page.space=bpm.processDefinitions&amp;ui.page.template=union.adminPage&amp;bpm.returnModuleAction=bpm.processDefinitionsReturn"/>
+
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"></ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+
+			
+            <!-- Finding Queries using ProjectInitials -->
+			<core:set var="vElementType">Query</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select Q.QUERY_CODE, Q.ID, CAP.NAME FROM CMN_GG_NSQL_QUERIES Q, CMN_CAPTIONS_NLS CAP
+				WHERE UPPER(Q.QUERY_CODE) like UPPER('${vProjectInitials}%')
+				and Q.source='customer'
+                AND CAP.PK_ID = Q.ID
+                AND CAP.LANGUAGE_CODE = 'en' 
+                AND CAP.tABLE_NAME = 'CMN_GG_NSQL_QUERIES'			
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementQueryID">${row[1]}</core:set>
+				<core:set var="vElementName">${row[2]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+				
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+
+				<!--core:set var="vElementID">QU=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:npt.queryGeneralProperties&amp;id=${vElementQueryID}"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"></ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+
+			
+            <!-- Finding Portlets using ProjectInitials -->
+			<core:set var="vElementType">Portlet</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select P.PORTLET_CODE, P.ID, lower(P.PORTLET_TYPE_CODE), CAP.NAME FROM CMN_PORTLETS P, CMN_CAPTIONS_NLS CAP
+				WHERE UPPER(P.PORTLET_CODE) like UPPER('${vProjectInitials}%')
+				and P.source='customer'
+                AND CAP.PK_ID = P.ID
+                AND CAP.LANGUAGE_CODE = 'en' 
+                AND CAP.tABLE_NAME = 'CMN_PORTLETS'		
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementPortletID">${row[1]}</core:set>
+				<core:set var="vElementPortletType">${row[2]}</core:set>
+				<core:set var="vElementName">${row[3]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				
+				<!--core:set var="vElementID">PO=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:if test="${vElementPortletType == 'system'}">
+					<core:set var="vElementURL" value="/niku/nu#action:npt.systemProperties&amp;portletId=${vElementPortletID}&amp;id=${vElementPortletID}&amp;obsType=Portlet"/>
+				</core:if>
+				<core:if test="${vElementPortletType != 'system'}">
+					<core:set var="vElementURL" value="/niku/nu#action:npt.${vElementPortletType}PropertiesEntry&amp;portletType=${vElementPortletType}&amp;portletId=${vElementPortletID}&amp;id=${vElementPortletID}&amp;obsType=Portlet"/>
+				</core:if>
+				
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"></ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+			
+            <!-- Finding Pages using ProjectInitials -->
+			<core:set var="vElementType">Page</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select PG.PAGE_CODE, PG.ID, CAP.NAME FROM CMN_PAGES PG, CMN_CAPTIONS_NLS CAP
+				WHERE UPPER(PG.PAGE_CODE) like UPPER('${vProjectInitials}%')
+				and PG.source='customer'
+                AND CAP.PK_ID = PG.ID
+                AND CAP.LANGUAGE_CODE = 'en' 
+                AND CAP.tABLE_NAME = 'CMN_PAGES'
+				and PG.PAGE_TYPE_CODE in ('tabPage', 'page')
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementPageID">${row[1]}</core:set>
+				<core:set var="vElementName">${row[2]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				
+				<!--core:set var="vElementID">PO=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:npt.getPage&amp;pageId=${vElementCode}&amp;id=${vElementPageID}&amp;obsType=Page&amp;principal_type=SYSTEM&amp;principal_id=0"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"></ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+					
+				<core:set var="vPageCode" value="${vElementCode}"/>
+				<!-- Adding page-related MenuItems to the project -->
+				<core:set var="vElementType">Menu</core:set>
+				<sql:query escapeText="false" var="vElements">
+					select AC.ACTION_CODE, CAP.NAME FROM CMN_ACTIONS AC, CMN_CAPTIONS_NLS CAP, CMN_PAGES PG, cmn_menu_items MI
+					WHERE UPPER(PG.PAGE_CODE) like UPPER('${vProjectInitials}%')
+                    AND AC.ACTION_CODE = PG.PAGE_CODE
+                    and MI.ACTION_ID = AC.ID
+                    and MI.CONTAINER_TYPE_CODE = 'MENU'
+                    AND CAP.PK_ID = AC.ID
+                    AND CAP.LANGUAGE_CODE = 'en' 
+                    AND CAP.tABLE_NAME = 'CMN_ACTIONS'
+				</sql:query>
+				<core:forEach items="${vElements.rowsByIndex}" var="row">
+					<core:set var="vElementCode">${row[0]}</core:set>
+					<core:set var="vElementName">${row[1]}</core:set>
+					<core:if test="${DebugLevel &gt; 1}">
+						<gel:log level="debug" message="${vPageCode}'s ${vElementType}: ${vElementCode}"/> 
+					</core:if>
+
+
+					<sql:query escapeText="false" var="vAutoNum">
+						select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+						where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+					</sql:query>
+					<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+						<core:set var="vElementID">${row[0]}</core:set>
+						<core:set var="vSchemeID">${row[1]}</core:set>
+					</core:forEach>
+
+					<sql:update>
+						update CMN_AUTONUM_SCHEME_SEGMENTS 
+						set NEXT_VALUE = NEXT_VALUE+1 
+						where scheme_id = ${vSchemeID}
+						and SEGMENT_CODE='NUMERIC'
+					</sql:update>
+					<sql:update>
+						update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+													FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+													WHERE S1.SCHEME_ID = S2.SCHEME_ID
+													AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+													AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+						WHERE ID  = ${vSchemeID}
+					</sql:update>
+
+					
+					<!--core:set var="vElementID">IP=${vElementCode}</core:set-->
+					<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+					<gel:parse var="vElementInstance">
+						<instance
+							instanceCode="${vElementID}"
+							objectCode="stproj_element"
+							parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+							<CustomInformation>
+								<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+								<ColumnValue name="name">${vElementName}</ColumnValue>
+								<ColumnValue name="code">${vElementID}</ColumnValue>
+								<ColumnValue name="element_id">${vElementCode}</ColumnValue>
+								<ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+								<ColumnValue name="element_type">${vElementType}</ColumnValue>
+								<ColumnValue name="is_autodiscovered">1</ColumnValue>
+								<ColumnValue name="master_object"></ColumnValue>
+								<ColumnValue name="element_url_link"></ColumnValue>
+								<ColumnValue name="element_url_flag">0</ColumnValue>
+							</CustomInformation>
+							<OBSAssocs completed="false"/>
+							<Security>
+								<UserSecurity
+									rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+								</Security>
+						</instance>
+					</gel:parse>
+
+					<!-- Adding the new elements to the project -->
+					<gel:set insert="true"
+						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+				</core:forEach>
+				<core:set var="vElementType">Page</core:set>
+
+			</core:forEach>
+
+
+            <!-- Finding Groups using ProjectInitials -->
+			<core:set var="vElementType">Group</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select G.GROUP_CODE, G.ID, CAP.NAME FROM CMN_SEC_GROUPS G, CMN_CAPTIONS_NLS CAP
+				WHERE UPPER(G.GROUP_CODE) like UPPER('${vProjectInitials}%')
+				and G.GROUP_ROLE_TYPE = 'GROUP' AND G.IS_AUTOMATIC=0
+                AND CAP.PK_ID = G.ID
+                AND CAP.LANGUAGE_CODE = 'en' 
+                AND CAP.tABLE_NAME = 'CMN_SEC_GROUPS'
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementGroupID">${row[1]}</core:set>
+				<core:set var="vElementName">${row[2]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				
+				<!--core:set var="vElementID">GR=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:nmc.group&amp;id=${vElementGroupID}"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"></ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+
+            <!-- Finding Reports  using ProjectInitials  -->
+			<core:set var="vElementType">Report</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select JR.job_code, CAP.NAME from CMN_SCH_JOB_DEFINITIONS JR, CMN_CAPTIONS_NLS CAP
+				Where JR.JOB_TYPE = 50316
+				AND JR.ID = CAP.PK_ID
+				AND CAP.TABLE_NAME = 'CMN_SCH_JOB_DEFINITIONS'
+				AND LANGUAGE_CODE = 'en'
+				AND upper(JR.JOB_CODE) like upper('${vProjectInitials}%')
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementName">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				
+				<!--core:set var="vElementID">SL=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:nmc.lookupOpenCategory&amp;lookup_type=${vElementCode}"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"></ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+
+            <!-- Finding Jobs  using ProjectInitials  -->
+			<core:set var="vElementType">Job</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select JR.job_code, CAP.NAME from CMN_SCH_JOB_DEFINITIONS JR, CMN_CAPTIONS_NLS CAP
+				Where JR.JOB_TYPE != 50316
+				AND JR.ID = CAP.PK_ID
+				AND CAP.TABLE_NAME = 'CMN_SCH_JOB_DEFINITIONS'
+				AND LANGUAGE_CODE = 'en'
+				AND upper(JR.JOB_CODE) like upper('${vProjectInitials}%')
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementName">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				
+				<!--core:set var="vElementID">SL=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:nmc.lookupOpenCategory&amp;lookup_type=${vElementCode}"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"></ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+
+			<!-- Finding Page-related MenuItems for manually inserted pages-->
+			<sql:query escapeText="false" var="vElements">
+				select PG.PAGE_CODE, PG.ID, CAP.NAME FROM CMN_PAGES PG, CMN_CAPTIONS_NLS CAP, ODF_CA_STPROJ_ELEMENT SE
+				WHERE UPPER(PG.PAGE_CODE) = UPPER(SE.ELEMENT_ID)
+				and PG.source='customer'
+                AND CAP.PK_ID = PG.ID
+                AND CAP.LANGUAGE_CODE = 'en' 
+                AND CAP.tABLE_NAME = 'CMN_PAGES'
+				and PG.PAGE_TYPE_CODE in ('tabPage', 'page')
+                and SE.ODF_PARENT_ID = ${vStudioProjectID}
+                and SE.IS_AUTODISCOVERED = 0
+                and SE.ELEMENT_TYPE = 'Page'
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementPageID">${row[1]}</core:set>
+				<core:set var="vElementName">${row[2]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+				<core:set var="vPageCode" value="${vElementCode}"/>
+				<!-- Adding page-related MenuItems to the project -->
+				<core:set var="vElementType">Menu</core:set>
+				<sql:query escapeText="false" var="vElements2">
+					select AC.ACTION_CODE, CAP.NAME FROM CMN_ACTIONS AC, CMN_CAPTIONS_NLS CAP
+					WHERE AC.ACTION_CODE = '${vPageCode}'
+                    AND CAP.PK_ID = AC.ID
+                    AND CAP.LANGUAGE_CODE = 'en' 
+                    AND CAP.tABLE_NAME = 'CMN_ACTIONS'
+				</sql:query>
+				<core:forEach items="${vElements2.rowsByIndex}" var="row">
+					<core:set var="vElementCode">${row[0]}</core:set>
+					<core:set var="vElementName">${row[1]}</core:set>
+					<core:if test="${DebugLevel &gt; 1}">
+						<gel:log level="debug" message="${vPageCode}'s ${vElementType}: ${vElementCode}"/> 
+					</core:if>
+
+					<sql:query escapeText="false" var="vAutoNum">
+						select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+						where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+					</sql:query>
+					<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+						<core:set var="vElementID">${row[0]}</core:set>
+						<core:set var="vSchemeID">${row[1]}</core:set>
+					</core:forEach>
+
+					<sql:update>
+						update CMN_AUTONUM_SCHEME_SEGMENTS 
+						set NEXT_VALUE = NEXT_VALUE+1 
+						where scheme_id = ${vSchemeID}
+						and SEGMENT_CODE='NUMERIC'
+					</sql:update>
+					<sql:update>
+						update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+													FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+													WHERE S1.SCHEME_ID = S2.SCHEME_ID
+													AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+													AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+						WHERE ID  = ${vSchemeID}
+					</sql:update>
+
+					<gel:parse var="vElementInstance">
+						<instance
+							instanceCode="${vElementID}"
+							objectCode="stproj_element"
+							parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+							<CustomInformation>
+								<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+								<ColumnValue name="name">${vElementName}</ColumnValue>
+								<ColumnValue name="code">${vElementID}</ColumnValue>
+								<ColumnValue name="element_id">${vElementCode}</ColumnValue>
+								<ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+								<ColumnValue name="element_type">${vElementType}</ColumnValue>
+								<ColumnValue name="is_autodiscovered">1</ColumnValue>
+								<ColumnValue name="master_object"></ColumnValue>
+								<ColumnValue name="element_url_link"></ColumnValue>
+								<ColumnValue name="element_url_flag">0</ColumnValue>
+							</CustomInformation>
+							<OBSAssocs completed="false"/>
+							<Security>
+								<UserSecurity
+									rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+								</Security>
+						</instance>
+					</gel:parse>
+
+					<!-- Adding the new elements to the project -->
+					<gel:set insert="true"
+						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+				</core:forEach>
+				<core:set var="vElementType">Page</core:set>
+
+			</core:forEach>
+			
+			<!-- Finding object-related Dynamic Lookups, Pages and Menu Items for manually inserted objects -->
+			<sql:query escapeText="false" var="vElements">
+				select OO.CODE, upper(OO.CODE), CAP.NAME from ODF_OBJECTS OO, CMN_CAPTIONS_NLS CAP, ODF_CA_STPROJ_ELEMENT SE
+				where OO.component = 'odf' 
+				and nvl(OO.PARENT_OBJECT_CODE, '?')='?' 
+				AND OO.IS_CUSTOMIZABLE = 1
+				AND UPPER(OO.CODE) = UPPER(SE.ELEMENT_ID)
+				AND OO.ID = CAP.PK_ID
+				AND CAP.LANGUAGE_CODE = 'en'
+				AND CAP.TABLE_NAME = 'ODF_OBJECTS'
+                and SE.ODF_PARENT_ID = ${vStudioProjectID}
+                and SE.ELEMENT_TYPE = 'MasterObject'
+                and SE.IS_AUTODISCOVERED = 0
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vUPPERObjectCode">${row[1]}</core:set>
+				<core:set var="vElementName">${row[2]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+
+				<core:set var="vObjectCode" value="${vElementCode}"/>
+				<!-- Adding object-related dynamic Lookups to the project -->
+				<core:set var="vInstancesLookup" value="OBJECT_LOOKUP_${vUPPERObjectCode}"/>
+				<core:set var="vPageLayoutLookup" value="ODF_CST_${vUPPERObjectCode}_PAGE_LAYOUT"/>
+				<core:set var="vElementType">DynamicLookup</core:set>
+				<sql:query escapeText="false" var="vElements">
+					select LOV.LOOKUP_TYPE_CODE, CAP.NAME from cmn_list_of_values LOV, cmn_lookup_types LKP, cmn_captions_nls CAP
+					where LOV.LOOKUP_TYPE_CODE in ('${vInstancesLookup}','${vPageLayoutLookup}')
+					AND LOV.LOOKUP_SOURCE_CODE = 'LOOKUP_SOURCE_DYNAMIC'
+					AND LOV.LOOKUP_TYPE_CODE = LKP.LOOKUP_TYPE
+					AND LKP.ID = CAP.PK_ID
+					AND CAP.LANGUAGE_CODE = 'en'
+					AND CAP.TABLE_NAME = 'CMN_LOOKUP_TYPES'
+				</sql:query>
+				<core:forEach items="${vElements.rowsByIndex}" var="row">
+					<core:set var="vElementCode">${row[0]}</core:set>
+					<core:set var="vElementName">${row[1]}</core:set>
+					<core:if test="${DebugLevel &gt; 1}">
+						<gel:log level="debug" message="${vObjectCode}'s ${vElementType}: ${vElementCode}"/> 
+					</core:if>
+
+					<sql:query escapeText="false" var="vAutoNum">
+						select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+						where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+					</sql:query>
+					<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+						<core:set var="vElementID">${row[0]}</core:set>
+						<core:set var="vSchemeID">${row[1]}</core:set>
+					</core:forEach>
+
+					<sql:update>
+						update CMN_AUTONUM_SCHEME_SEGMENTS 
+						set NEXT_VALUE = NEXT_VALUE+1 
+						where scheme_id = ${vSchemeID}
+						and SEGMENT_CODE='NUMERIC'
+					</sql:update>
+					<sql:update>
+						update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+													FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+													WHERE S1.SCHEME_ID = S2.SCHEME_ID
+													AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+													AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+						WHERE ID  = ${vSchemeID}
+					</sql:update>
+					
+					<core:set var="vElementURL" value="/niku/nu#action:nmc.lookupOpenCategory&amp;lookup_type=${vElementCode}"/>
+
+					<gel:parse var="vElementInstance">
+						<instance
+							instanceCode="${vElementID}"
+							objectCode="stproj_element"
+							parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+							<CustomInformation>
+								<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+								<ColumnValue name="name">${vElementName}</ColumnValue>
+								<ColumnValue name="code">${vElementID}</ColumnValue>
+								<ColumnValue name="element_id">${vElementCode}</ColumnValue>
+								<ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+								<ColumnValue name="element_type">${vElementType}</ColumnValue>
+								<ColumnValue name="is_autodiscovered">1</ColumnValue>
+								<ColumnValue name="master_object"></ColumnValue>
+								<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+								<ColumnValue name="element_url_flag">1</ColumnValue>
+							</CustomInformation>
+							<OBSAssocs completed="false"/>
+								<Security>
+									<UserSecurity
+										rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+								</Security>
+						</instance>
+					</gel:parse>
+
+					<!-- Adding the new elements to the project -->
+					<gel:set insert="true"
+						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+				</core:forEach>
+
+				<!-- Adding object-related pages to the project -->
+				<core:set var="vPageObject" value="odf.${vObjectCode}"/>
+				<core:set var="vElementType">Page</core:set>
+
+				<sql:query escapeText="false" var="vElements">
+					select PG.PAGE_CODE, PG.ID, CAP.NAME FROM CMN_PAGES PG, CMN_CAPTIONS_NLS CAP
+					WHERE UPPER(PG.PAGE_CODE) like UPPER('${vPageObject}%Frame')
+					and PG.source='customer'
+                    AND CAP.PK_ID = PG.ID
+                    AND CAP.LANGUAGE_CODE = 'en' 
+                    AND CAP.tABLE_NAME = 'CMN_PAGES'
+				</sql:query>
+				<core:forEach items="${vElements.rowsByIndex}" var="row">
+					<core:set var="vElementCode">${row[0]}</core:set>
+					<core:set var="vElementPageID">${row[1]}</core:set>
+					<core:set var="vElementName">${row[2]}</core:set>
+					<core:if test="${DebugLevel &gt; 1}">
+						<gel:log level="debug" message="${vObjectCode}'s ${vElementType}: ${vElementCode}"/> 
+					</core:if>
+			
+					<sql:query escapeText="false" var="vAutoNum">
+						select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+						where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+					</sql:query>
+					<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+						<core:set var="vElementID">${row[0]}</core:set>
+						<core:set var="vSchemeID">${row[1]}</core:set>
+					</core:forEach>
+
+					<sql:update>
+						update CMN_AUTONUM_SCHEME_SEGMENTS 
+						set NEXT_VALUE = NEXT_VALUE+1 
+						where scheme_id = ${vSchemeID}
+						and SEGMENT_CODE='NUMERIC'
+					</sql:update>
+					<sql:update>
+						update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+													FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+													WHERE S1.SCHEME_ID = S2.SCHEME_ID
+													AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+													AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+						WHERE ID  = ${vSchemeID}
+					</sql:update>
+
+					<core:set var="vElementURL" value="/niku/nu#action:npt.getPage&amp;pageId=${vElementCode}&amp;id=${vElementPageID}&amp;obsType=Page&amp;principal_type=SYSTEM&amp;principal_id=0"/>
+					<!--core:set var="vElementID">PO=${vElementCode}</core:set-->
+					<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+					<gel:parse var="vElementInstance">
+						<instance
+							instanceCode="${vElementID}"
+							objectCode="stproj_element"
+							parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+							<CustomInformation>
+								<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+								<ColumnValue name="name">${vElementName}</ColumnValue>
+								<ColumnValue name="code">${vElementID}</ColumnValue>
+								<ColumnValue name="element_id">${vElementCode}</ColumnValue>
+								<ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+								<ColumnValue name="element_type">${vElementType}</ColumnValue>
+								<ColumnValue name="is_autodiscovered">1</ColumnValue>
+								<ColumnValue name="master_object"></ColumnValue>
+								<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+								<ColumnValue name="element_url_flag">1</ColumnValue>
+							</CustomInformation>
+							<OBSAssocs completed="false"/>
+							<Security>
+								<UserSecurity
+									rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+								</Security>
+						</instance>
+					</gel:parse>
+
+					<!-- Adding the new elements to the project -->
+					<gel:set insert="true"
+						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+				</core:forEach>
+				
+				<!-- Adding object-related MenuItems to the project -->
+				<core:set var="vPageObject" value="odf.${vObjectCode}"/>
+				<core:set var="vElementType">Menu</core:set>
+				<sql:query escapeText="false" var="vElements">
+					select AC.ACTION_CODE, CAP.NAME FROM CMN_ACTIONS AC, CMN_CAPTIONS_NLS CAP
+					WHERE UPPER(AC.ACTION_CODE) like UPPER('${vPageObject}%List')
+                    AND CAP.PK_ID = AC.ID
+                    AND CAP.LANGUAGE_CODE = 'en' 
+                    AND CAP.tABLE_NAME = 'CMN_ACTIONS'
+				</sql:query>
+				<core:forEach items="${vElements.rowsByIndex}" var="row">
+					<core:set var="vElementCode">${row[0]}</core:set>
+					<core:set var="vElementName">${row[1]}</core:set>
+					<core:if test="${DebugLevel &gt; 1}">
+						<gel:log level="debug" message="${vObjectCode}'s ${vElementType}: ${vElementCode}"/> 
+					</core:if>
+
+
+					<sql:query escapeText="false" var="vAutoNum">
+						select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+						where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+					</sql:query>
+					<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+						<core:set var="vElementID">${row[0]}</core:set>
+						<core:set var="vSchemeID">${row[1]}</core:set>
+					</core:forEach>
+
+					<sql:update>
+						update CMN_AUTONUM_SCHEME_SEGMENTS 
+						set NEXT_VALUE = NEXT_VALUE+1 
+						where scheme_id = ${vSchemeID}
+						and SEGMENT_CODE='NUMERIC'
+					</sql:update>
+					<sql:update>
+						update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+													FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+													WHERE S1.SCHEME_ID = S2.SCHEME_ID
+													AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+													AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+						WHERE ID  = ${vSchemeID}
+					</sql:update>
+					
+					<!--core:set var="vElementID">IO=${vElementCode}</core:set-->
+					<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+					<gel:parse var="vElementInstance">
+						<instance
+							instanceCode="${vElementID}"
+							objectCode="stproj_element"
+							parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+							<CustomInformation>
+								<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+								<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+								<ColumnValue name="name">${vElementName}</ColumnValue>
+								<ColumnValue name="code">${vElementID}</ColumnValue>
+								<ColumnValue name="element_id">${vElementCode}</ColumnValue>
+								<ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+								<ColumnValue name="element_type">${vElementType}</ColumnValue>
+								<ColumnValue name="is_autodiscovered">1</ColumnValue>
+								<ColumnValue name="master_object"></ColumnValue>
+								<ColumnValue name="element_url_link"></ColumnValue>
+								<ColumnValue name="element_url_flag">0</ColumnValue>
+							</CustomInformation>
+							<OBSAssocs completed="false"/>
+							<Security>
+								<UserSecurity
+									rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+								</Security>
+						</instance>
+					</gel:parse>
+
+					<!-- Adding the new elements to the project -->
+					<gel:set insert="true"
+						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+				</core:forEach>
+
+				<core:set var="vElementType">MasterObject</core:set>
+			</core:forEach>
+	
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGROOT_${vStudioProjectID}.xml"/>
+			</core:if>
+
+			<!-- Calling XOG-->
+			<core:catch var="v_xog_exception">
+				<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+					<soap:message>
+						<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+							<soapenv:Header>
+								<xog:Auth>
+									<xog:SessionID>${sessionID}</xog:SessionID>
+								</xog:Auth>
+							</soapenv:Header>
+							<soapenv:Body>
+								<gel:include select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus"/>
+							</soapenv:Body>
+						</soapenv:Envelope>
+					</soap:message>
+				</soap:invoke>
+			</core:catch>
+            <core:choose>
+                <core:when test="${v_xog_exception != null}">
+                    <gel:out>[XOG]XOG operation failed: ${v_xog_exception}</gel:out>
+					<core:if test="${DebugLevel &gt; 0}">
+						<gel:log category="XOG" level="ERROR">XOG operation failed: ${v_xog_exception}</gel:log>
+					</core:if>
+                </core:when>
+                <core:otherwise>
+                    <gel:set
+                        select="$runresult/soapenv:Envelope/soapenv:Body/XOGOutput" var="writeOutputRoot"/>
+                    <gel:set asString="true"
+                        select="$writeOutputRoot/Status/@state" var="XOGoutcome"/>
+                    <gel:set asString="true"
+                        select="$writeOutputRoot/Records/Record" var="XOGoutputrecords"/>
+                    <gel:set asString="true"
+                        select="$writeOutputRoot/Statistics/@totalNumberOfRecords" var="XOGtotalrecords"/>
+                    <gel:set asString="true"
+                        select="$writeOutputRoot/Statistics/@insertedRecords" var="XOGinsertedrecords"/>
+                    <gel:set asString="true"
+                        select="$writeOutputRoot/Statistics/@updatedRecords" var="XOGupdatedrecords"/>
+                    <gel:set asString="true"
+                        select="$writeOutputRoot/Statistics/@failureRecords" var="XOGfailurerecords"/>
+                    <!-- Check the XOG result -->
+                    <gel:out>[XOG]Document import for ${vStudioProjectID}</gel:out>
+                    <gel:out>[XOG]Status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:out>
+
+					<core:if test="${DebugLevel &gt; 0}">
+						<gel:log category="XOG" level="INFO">[XOGDocument import for ${v_xog_resourceid} status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:log>
+					</core:if>
+                </core:otherwise>
+            </core:choose>
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:serialize var="${runresult}" fileName="${XOGlogFolder}/XOGResult_${vStudioProjectID}.xml"/>
+			</core:if>
+			<!-- Log out from XOG -->
+			<soap:invoke endpoint="${XOGURL}/niku/xog" var="logoutresult">
+				<soap:message>
+					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+						<soapenv:Header>
+							<xog:Auth>
+								<xog:SessionID>${sessionID}</xog:SessionID>
+							</xog:Auth>
+						</soapenv:Header>
+						<soapenv:Body>
+							<xog:Logout/>
+						</soapenv:Body>
+					</soapenv:Envelope>
+				</soap:message>
+			</soap:invoke>
+		</core:otherwise>
+    </core:choose>		
+</gel:script>

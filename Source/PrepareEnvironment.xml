@@ -1,0 +1,216 @@
+<gel:script 
+ xmlns:core="jelly:core" 
+    xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
+    xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:sql="jelly:sql"
+    xmlns:xog="http://www.niku.com/xog"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
+    xmlns:util="jelly:util"
+    xmlns:q="http://www.niku.com/xog/Query">
+	
+
+	<core:set var="DebugLevel">1</core:set>
+	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
+
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Start Script"/>
+		<gel:log level="debug" message="Studio Project: ${vStudioProjectID}"/> 
+	</core:if>
+	
+	<gel:setDataSource dbId="Niku"/>
+
+    <gel:parameter default="admin" var="XOGUsername"/>
+    <gel:parameter default="c" var="XOGPassword"/>
+
+	<core:invokeStatic var="config" className="com.niku.union.config.ConfigurationManager" method="getInstance"/>
+	<core:set var="vInstallDirInput" value="${config.getProperties().getDirectories().getInstallDir()}"/>
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="vInstallDirInput :  ${vInstallDirInput}"/>
+	</core:if>
+	
+	<core:new className="java.lang.String" var="InputString" >
+		<core:arg type="java.lang.String" value="${vInstallDirInput}" />
+	</core:new>
+
+	<core:invoke var="vInputStringCorrect" on="${InputString}" method="replaceAll">
+		<core:arg type="java.lang.String" value="\\\\"/>
+		<core:arg type="java.lang.String" value="\\"/>
+	</core:invoke>
+
+	<core:invoke var="vInstallDir" on="${vInputStringCorrect}" method="replace">
+		<core:arg type="char" value="\"/>
+		<core:arg type="char" value="/"/>
+	</core:invoke>
+	
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="vInstallDir :  ${vInstallDir}"/>
+	</core:if>
+	
+	<core:set var="XOGlogFolder" value="${vInstallDir}/logs"/>
+	<core:if test="${DebugLevel &gt; 1}">
+		<core:set var="XOGwebFolder" value="${vInstallDir}/webroot"/>
+	</core:if>
+	<core:set var="schedulerUrl" value="${config.getProperties().getWebServer().getSchedulerUrl()}"/>
+	
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="schedulerUrl: ${schedulerUrl}"/> 
+	</core:if>
+	
+	<!-- Gets ID from Instance 0-->
+    <core:set var="WebServerid" value="${config.getProperties().getWebServer().getWebServerInstance(0).getId()}"/>
+	<!-- Tests if Instance 0 is app - then gets instance 0 data -->
+	<core:if test="${WebServerid == 'app'}">
+        <core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(0).getEntryUrl()}"/>
+	</core:if>
+	<!-- Tests if Instance 0 is nsa - then gets instance 1 data -->
+	<core:if test="${WebServerid == 'nsa'}">
+        <core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(1).getEntryUrl()}"/>
+	</core:if>
+
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="WebServerid: ${WebServerid}"/> 
+		<gel:log level="debug" message="entryUrl: ${entryUrl}"/> 
+	</core:if>
+
+	<!-- Not sure whether I should use entryUrl -->
+	<core:set var="XOGURL" value="${entryUrl}"/>
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="XOGURL: ${XOGURL}"/> 
+		<gel:log level="debug" message="XOGlogFolder: ${XOGlogFolder}"/> 
+	</core:if>
+	
+    <!-- Log in to XOG-->
+    <soap:invoke endpoint="${XOGURL}/niku/xog" var="auth">
+        <soap:message>
+            <soapenv:Envelope
+                xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+                <soapenv:Header/>
+                <soapenv:Body>
+                    <xog:Login>
+                        <xog:Username>${XOGUsername}</xog:Username>
+                        <xog:Password>${XOGPassword}</xog:Password>
+                    </xog:Login>
+                </soapenv:Body>
+            </soapenv:Envelope>
+        </soap:message>
+    </soap:invoke>
+    <gel:set asString="true"
+        select="$auth/soapenv:Envelope/soapenv:Body/xog:SessionID/text()" var="sessionID"/>
+    <core:choose>
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:serialize var="${auth}" fileName="${XOGlogFolder}/auth.xml"/>
+	</core:if>
+        <!-- Check XOG sessionID -->
+        <core:when test="${sessionID == null}">
+            <gel:log category="XOG" level="ERROR">Couldn't Log in to XOG. Please verify the username/password.</gel:log>
+			<sql:update>
+				UPDATE ODF_CA_STPROJ_PROJECT 
+				SET packaging = 'Error' 
+				WHERE id = ${vStudioProjectID}
+			</sql:update>
+        </core:when>
+        <core:otherwise>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="[XOG] XOG Login Successful. ${sessionID}."/> 
+			</core:if>
+			<gel:persist var="XOGURL" value="${XOGURL}" scope="INSTANCE"/>
+			<gel:persist var="XOGlogFolder" value="${XOGlogFolder}" scope="INSTANCE"/>
+			<gel:persist var="XOGwebFolder" value="${XOGwebFolder}" scope="INSTANCE"/>
+			<gel:persist var="sessionID" value="${sessionID}" scope="INSTANCE"/>
+			<gel:persist var="DebugLevel" value="${DebugLevel}" scope="INSTANCE"/>
+	
+			<sql:query escapeText="false" var="vProject">
+				select SP.PROJECT_CODE, SP.PACKAGING_PATH, SP.OUT_FOLDER_PATH, SP.XOG_HOME, CI.XOG_URL, CI.XOG_USERNAME, CI.XOG_PASSWORD, CI.XOG_PORT, SP.ST_INCLUDE, nvl(SP.PUBLISH,0)
+				from odf_ca_stproj_project SP, odf_ca_stproj_clarity_inst CI
+				Where SP.id = ${vStudioProjectID}
+				AND SP.target_instance = CI.code
+			</sql:query>
+			<core:forEach items="${vProject.rowsByIndex}" var="row">
+				<core:set var="vProjectCode">${row[0]}</core:set>
+				<core:set var="vPackagingPath">${row[1]}</core:set>
+				<core:set var="vOutputPath">${row[2]}</core:set>
+				<core:set var="vXOGHome">${row[3]}</core:set>
+				<core:set var="vServername">${row[4]}</core:set>
+				<core:set var="vXOGUser">${row[5]}</core:set>
+				<core:set var="vXOGPassword">${row[6]}</core:set>
+				<core:set var="vXOGPort">${row[7]}</core:set>
+				<core:set var="vInclude">${row[8]}</core:set>
+				<core:set var="vPublish">${row[9]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vProjectCode  : ${vProjectCode}"/> 
+					<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
+					<gel:log level="debug" message="vOutputPath   : ${vOutputPath}"/> 
+					<gel:log level="debug" message="vXOGHome      : ${vXOGHome}"/> 
+					<gel:log level="debug" message="vServername   : ${vServername}"/> 
+					<gel:log level="debug" message="vXOGUser      : ${vXOGUser}"/> 
+					<gel:log level="debug" message="vXOGPassword  : ${vXOGPassword}"/> 
+					<gel:log level="debug" message="vXOGPort      : ${vXOGPort}"/> 
+					<gel:log level="debug" message="vInclude      : ${vInclude}"/> 
+					<gel:log level="debug" message="vPublish      : ${vPublish}"/> 
+				</core:if>
+			</core:forEach>
+
+			<!-- vPackagingPath has been specified === create it -->
+			<core:if test="${vPackagingPath!=''}">
+				<core:set var="dir_to_create">${vPackagingPath}</core:set>
+				<util:file name="${dir_to_create}" var="foldervar" />
+				<core:set var="CreateDirDone" value="${foldervar.mkdirs()}" />
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="CreateDirDone : ${CreateDirDone}"/>
+				</core:if>				
+			</core:if>
+
+			<!-- vPackagingPath has NOT been specified === create default folder under webroot/StudioProjects-Temp -->
+			<core:if test="${vPackagingPath==''}">
+				<core:set var="dir_to_create" value="${vInstallDir}/webroot/StudioProjects-Temp/${vProjectCode}"/>
+				<util:file name="${dir_to_create}" var="foldervar" />
+				<core:set var="FolderExists" value="${foldervar.exists()}"/>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="FolderExists      : ${FolderExists}"/>
+				</core:if>
+				<!-- if default folder already exists, it must be deleted -->
+				<core:if test="${FolderExists == true}">
+					<core:set var="listOfFiles" value="${foldervar.listFiles()}" />
+					<!-- First, delete all files -->
+					<core:forEach items="${listOfFiles}" var="row">
+						<core:set var="vFile">${row}</core:set>
+						<core:if test="${DebugLevel &gt; 1}">
+							<gel:log level="debug" message="vFile      : ${vFile}"/>
+						</core:if>
+						<util:file name="${vFile}" var="filevar" />
+						<core:set var="deleteDone" value="${filevar.delete()}" />
+						<core:if test="${DebugLevel &gt; 1}">
+							<gel:log level="debug" message="deleteDone for File : ${deleteDone}"/>
+						</core:if>
+					</core:forEach>
+					<!-- Then delete folder -->
+					<core:set var="deleteDone" value="${foldervar.delete()}" />
+					<core:if test="${DebugLevel &gt; 1}">
+						<gel:log level="debug" message="deleteDone for Folder : ${deleteDone}"/>
+					</core:if>
+				</core:if>
+				<!-- Then create the new folder mkdirs will create all intermediate parent folders  -->
+				<core:set var="CreateDirDone" value="${foldervar.mkdirs()}" />
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="CreateDirDone : ${CreateDirDone}"/>
+				</core:if>				
+				<core:set var="vPackagingPath" value="${dir_to_create}"/>
+				<sql:update>
+					update ODF_CA_STPROJ_PROJECT set PACKAGING_PATH='${vPackagingPath}' 
+					where id = ${vStudioProjectID}
+				</sql:update>
+			</core:if>
+				
+			<!--Create Publish folder under WebRoot -->
+			<core:if test="${vPublish == 1}">
+				<core:set var="publishdir">${vInstallDir}/webroot/StudioPackages/${vProjectCode}</core:set>
+				<util:file name="${publishdir}" var="newpubdir" />
+				<core:set var="publishdirmade" value="${newpubdir.mkdirs()}" />
+			</core:if>
+		</core:otherwise>
+    </core:choose>		
+</gel:script>

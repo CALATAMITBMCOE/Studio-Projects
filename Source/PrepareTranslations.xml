@@ -1,0 +1,1299 @@
+<gel:script 
+ xmlns:core="jelly:core" 
+    xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
+    xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:sql="jelly:sql"
+    xmlns:xog="http://www.niku.com/xog"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
+    xmlns:util="jelly:util"
+    xmlns:q="http://www.niku.com/xog/Query">
+	
+    <gel:parameter default="admin" var="XOGUsername"/>
+    <gel:parameter default="c" var="XOGPassword"/>
+
+	<core:set var="DebugLevel">1</core:set>
+	<core:set var="vFound">0</core:set>
+	
+	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
+
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Start Script"/>
+		<gel:log level="debug" message="Studio Project: ${vStudioProjectID}"/> 
+	</core:if>
+
+    <gel:setDataSource dbId="Niku"/>
+
+	<core:invokeStatic var="config" className="com.niku.union.config.ConfigurationManager" method="getInstance"/>
+	<core:set var="vInstallDirInput" value="${config.getProperties().getDirectories().getInstallDir()}"/>
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="vInstallDirInput :  ${vInstallDirInput}"/>
+	</core:if>
+	
+	<core:new className="java.lang.String" var="InputString" >
+		<core:arg type="java.lang.String" value="${vInstallDirInput}" />
+	</core:new>
+
+	<core:invoke var="vInstallDir" on="${InputString}" method="replace">
+		<core:arg type="char" value="\"/>
+		<core:arg type="char" value="/"/>
+	</core:invoke>
+	
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="vInstallDir :  ${vInstallDir}"/>
+	</core:if>
+	
+	<core:set var="XOGlogFolder" value="${vInstallDir}/logs"/>
+	<core:set var="schedulerUrl" value="${config.getProperties().getWebServer().getSchedulerUrl()}"/>
+	
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="schedulerUrl: ${schedulerUrl}"/> 
+	</core:if>
+	
+	<!-- Gets ID from Instance 0-->
+    <core:set var="WebServerid" value="${config.getProperties().getWebServer().getWebServerInstance(0).getId()}"/>
+	<!-- Tests if Instance 0 is app - then gets instance 0 data -->
+	<core:if test="${WebServerid == 'app'}">
+        <core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(0).getEntryUrl()}"/>
+	</core:if>
+	<!-- Tests if Instance 0 is nsa - then gets instance 1 data -->
+	<core:if test="${WebServerid == 'nsa'}">
+        <core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(1).getEntryUrl()}"/>
+	</core:if>
+
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="WebServerid: ${WebServerid}"/> 
+		<gel:log level="debug" message="entryUrl: ${entryUrl}"/> 
+	</core:if>
+
+	<!-- Not sure whether I should use entryUrl -->
+	<core:set var="XOGURL" value="${entryUrl}"/>
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="XOGURL: ${XOGURL}"/> 
+		<gel:log level="debug" message="XOGlogFolder: ${XOGlogFolder}"/> 
+	</core:if>
+		
+	
+	<sql:query escapeText="false" var="vProject">
+		select INITIALS, CODE, PARTITION_CODE, NAME
+		from odf_ca_stproj_project
+		Where id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vProject.rowsByIndex}" var="row">
+		<core:set var="vProjectInitials">${row[0]}</core:set>
+		<core:set var="vProjectCode">${row[1]}</core:set>
+		<core:set var="vStudio_Part">${row[2]}</core:set>
+		<core:set var="vStudioProjectName">${row[3]}</core:set>
+	</core:forEach>
+	
+    <!-- Log in to XOG-->
+    <soap:invoke endpoint="${XOGURL}/niku/xog" var="auth">
+        <soap:message>
+            <soapenv:Envelope
+                xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+                <soapenv:Header/>
+                <soapenv:Body>
+                    <xog:Login>
+                        <xog:Username>${XOGUsername}</xog:Username>
+                        <xog:Password>${XOGPassword}</xog:Password>
+                    </xog:Login>
+                </soapenv:Body>
+            </soapenv:Envelope>
+        </soap:message>
+    </soap:invoke>
+    <gel:set asString="true"
+        select="$auth/soapenv:Envelope/soapenv:Body/xog:SessionID/text()" var="sessionID"/>
+    <core:choose>
+        <!-- Check XOG sessionID -->
+        <core:when test="${sessionID == null}">
+            <gel:out>[XOG]Couldn't Log in to XOG. Verify the username/password.</gel:out>
+            <gel:log category="XOG" level="ERROR">Couldn't Log in to XOG. Please verify the username/password.</gel:log>
+        </core:when>
+        <core:otherwise>
+            <!-- XOG if session ID is valid -->
+            <!-- Login successful - BEGIN GEL LOGIC  -->
+            <gel:out>[XOG] XOG Login Successful. ${sessionID}.</gel:out>
+
+			<sql:query escapeText="false" var="vElements">
+				select element_id from ODF_CA_STPROJ_ELEMENT
+				Where odf_parent_id = ${vStudioProjectID}
+				AND element_type='Process'
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementID">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 0}">
+					<gel:log level="debug" message="ElementID: ${vElementID}"/> 
+				</core:if>
+				
+			</core:forEach>		
+
+			<sql:update>
+				delete from ODF_CA_STPROJ_ELEM_XLAT
+				Where odf_parent_id = ${vStudioProjectID}
+			</sql:update>
+
+            <soap:invoke endpoint="${XOGURL}/niku/xog" var="v_xml_root">
+                <soap:message>
+                    <soapenv:Envelope
+                        xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+                        <soapenv:Header>
+                            <xog:Auth>
+                                <xog:SessionID>${sessionID}</xog:SessionID>
+                            </xog:Auth>
+                        </soapenv:Header>
+                        <soapenv:Body>
+                            <NikuDataBus
+                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
+                                <Header action="read"
+                                    externalSource="NIKU"
+                                    objectType="customObjectInstance" version="8.0"/>
+                                <CustomObjectInstanceQuery>
+                                    <Filter criteria="EQUALS" name="objectCode">stproj_project</Filter>
+                                    <Filter criteria="EQUALS" name="instanceCode">${vProjectCode}</Filter>
+                                </CustomObjectInstanceQuery>
+                            </NikuDataBus>
+                        </soapenv:Body>
+                    </soapenv:Envelope>
+                </soap:message>
+            </soap:invoke>
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_${vStudioProjectID}.xml"/>
+			</core:if>
+
+			<!-- Finding Elements and Languages to be translated -->
+			<sql:query escapeText="false" var="vElements">
+				select MVL.value, SE.ELEMENT_ID, SE.ELEMENT_TYPE, SE.NAME, SE.MASTER_OBJECT from ODF_MULTI_VALUED_LOOKUPS MVL, ODF_CA_STPROJ_ELEMENT SE
+				where MVL.object = 'stproj_project'
+				AND MVL.ATTRIBUTE = 'lang_xlat'
+				AND MVL.PK_ID = SE.ODF_PARENT_ID
+				AND SE.ODF_PARENT_ID = ${vStudioProjectID}
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vLanguageCode">${row[0]}</core:set>
+				<core:set var="vElementID">${row[1]}</core:set>
+				<core:set var="vElementType">${row[2]}</core:set>
+				<core:set var="vElementName">${row[3]}</core:set>
+				<core:set var="vMasterObject">${row[4]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vLanguageCode: ${vLanguageCode}"/> 
+					<gel:log level="debug" message="vElementID: ${vElementID}"/> 
+					<gel:log level="debug" message="vElementType: ${vElementType}"/> 
+					<gel:log level="debug" message="vElementName: ${vElementName}"/> 
+					<gel:log level="debug" message="vMasterObject: ${vMasterObject}"/> 
+				</core:if>
+				<core:switch on="${vElementType}">
+					<core:case value="Process">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<sql:query escapeText="false" var="vCaptions">
+							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
+							from CMN_CAPTIONS_NLS 
+							where language_code = '${vLanguageCode}' and 
+							((TABLE_NAME='BPM_DEF_PROCESSES' and pk_id in (select id from BPM_DEF_PROCESSES where process_code = '${vElementID}'))
+							or
+							(TABLE_NAME='BPM_DEF_STAGES' and NAME != 'default group name' 
+														and pk_id in (select PS.id from BPM_DEF_STAGES PS, 
+																						bpm_def_process_versions PV, 
+																						BPM_DEF_PROCESSES PR  
+																	where PS.PROCESS_VERSION_ID = PV.ID
+																	AND PV.PROCESS_ID = PR.ID
+																	AND PR.PROCESS_CODE = '${vElementID}'))
+							or
+							(TABLE_NAME='BPM_DEF_STEPS' and pk_id in (select PST.ID from BPM_DEF_STEPS PST, 
+																							BPM_DEF_STAGES PS, 
+																							bpm_def_process_versions PV, 
+																							BPM_DEF_PROCESSES PR  
+																	where PST.STAGE_ID = PS.ID 
+																	AND PST.STEP_CODE not in ('Start', 'Finish')
+																	AND PS.PROCESS_VERSION_ID = PV.ID
+																	AND PV.PROCESS_ID = PR.ID
+																	AND PR.PROCESS_CODE = '${vElementID}')) 
+							or
+							(TABLE_NAME='BPM_DEF_STEP_ACTIONS' and pk_id in (select PSA.ID from BPM_DEF_STEP_ACTIONS PSA, 
+																								BPM_DEF_STEPS PST, 
+																								BPM_DEF_STAGES PS, 
+																								bpm_def_process_versions PV, 
+																								BPM_DEF_PROCESSES PR  
+																	where PSA.STEP_ID = PST.ID
+																	AND PST.STAGE_ID = PS.ID 
+																	AND PST.STEP_CODE not in ('Start', 'Finish')
+																	AND PS.PROCESS_VERSION_ID = PV.ID
+																	AND PV.PROCESS_ID = PR.ID
+																	AND PR.PROCESS_CODE = '${vElementID}')) 
+							or
+							(TABLE_NAME='BPM_DEF_STEP_CONDITION_NOTES' and pk_id in (select PSC.ID from BPM_DEF_STEP_CONDITIONS PSC, 
+																										BPM_DEF_STEPS PST, 
+																										BPM_DEF_STAGES PS, 
+																										bpm_def_process_versions PV, 
+																										BPM_DEF_PROCESSES PR  
+																	where PSC.STEP_ID = PST.ID
+																	AND PST.STAGE_ID = PS.ID 
+																	AND PST.STEP_CODE not in ('Start', 'Finish')
+																	AND PS.PROCESS_VERSION_ID = PV.ID
+																	AND PV.PROCESS_ID = PR.ID
+																	AND PR.PROCESS_CODE = '${vElementID}'))) 
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:case value="Query">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<sql:query escapeText="false" var="vCaptions">
+							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
+							from CMN_CAPTIONS_NLS 
+							where language_code = '${vLanguageCode}' and 
+                            table_name = 'CMN_GG_NSQL_QUERIES'
+                            and pk_id in (select id from CMN_GG_NSQL_QUERIES where query_code = '${vElementID}')
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:case value="MasterObject">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<!-- MasterObject Labels -->
+						<sql:query escapeText="false" var="vCaptions">
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join odf_objects O on o.id = cap.pk_id and cap.table_name = 'ODF_OBJECTS' and cap.language_code = '${vLanguageCode}'
+							where o.code = '${vElementID}'
+						UNION              
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_CUSTOM_ATTRIBUTES O on o.id = cap.pk_id and cap.table_name = 'ODF_CUSTOM_ATTRIBUTES' and cap.language_code = '${vLanguageCode}'
+							where o.object_name = '${vElementID}' and o.INTERNAL_NAME not in ('partition_code', 'name', 'code', 'page_layout')
+						UNION              
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join CMN_GRIDS G on G.id = cap.pk_id and cap.table_name = 'CMN_GRIDS' and cap.language_code = '${vLanguageCode}'
+							where g.dal_code = '${vElementID}' and g.dal_type = 'object' and nvl(G.PORTLET_ID,0)=0 
+						UNION              
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_VIEWS O on o.id = cap.pk_id and cap.table_name = 'ODF_VIEWS' and cap.language_code = '${vLanguageCode}' 
+							where o.object_code = '${vElementID}' 
+						UNION              
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_VIEW_SECTIONS O on o.id = cap.pk_id and cap.table_name = 'ODF_VIEW_SECTIONS' and cap.language_code = '${vLanguageCode}' 
+                                        inner join ODF_VIEWS V on V.object_code = '${vElementID}' and o.view_id = V.ID
+						UNION              
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_VIEW_ATTRIBUTES O on o.label_pk_id = cap.pk_id and cap.table_name in ('ODF_VIEW_ATTRIBUTES','ODF_VIEW_ATTRIBUTES_DESC','ODF_VIEW_ATTRIBUTES_INSTR','ODF_VIEW_ATTRIBUTES_TIP') and cap.language_code = '${vLanguageCode}' 
+                                        inner join ODF_VIEWS V on V.object_code = '${vElementID}' and o.view_id = V.ID
+							where O.attribute_code not in ('partition_code', 'name', 'code', 'page_layout', 'created_date','created_by','updated_by','last_updated_date', 'odf_obs_unit_id_list')
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-SubObjects"/> 
+						</core:if>
+
+						<!-- MasterObject's child objects Labels -->
+						<sql:query escapeText="false" var="vCaptions">
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join odf_objects O on o.id = cap.pk_id and cap.table_name = 'ODF_OBJECTS' and CAP.language_code = '${vLanguageCode}' 
+							where O.parent_object_code = '${vElementID}'
+						UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join odf_custom_attributes OCA on OCA.id = cap.pk_id and cap.table_name = 'ODF_CUSTOM_ATTRIBUTES' and CAP.language_code = '${vLanguageCode}' 
+                                        inner join odf_objects O on oca.object_name = o.code and o.parent_object_code = '${vElementID}'
+							where OCA.INTERNAL_NAME not in ('partition_code', 'name', 'code', 'page_layout')
+						UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join CMN_GRIDS G on G.id = cap.pk_id and cap.table_name = 'CMN_GRIDS' and CAP.language_code = '${vLanguageCode}' 
+                                        inner join odf_objects O on g.dal_type = 'object' and G.dal_code = O.CODE AND O.PARENT_OBJECT_CODE = '${vElementID}'
+							where nvl(G.portlet_id,0)=0
+						UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from cmn_Captions_nls cap inner join ODF_VIEWS OV on cap.language_code = '${vLanguageCode}' and cap.pk_id = ov.id and cap.table_name = 'ODF_VIEWS'
+                                        inner join odf_objects O on ov.object_code = O.CODE AND O.PARENT_OBJECT_CODE = '${vElementID}'
+						UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_VIEW_SECTIONS OS on OS.id = cap.pk_id and cap.table_name = 'ODF_VIEW_SECTIONS' and CAP.language_code = '${vLanguageCode}' 
+                                        inner join ODF_VIEWS OV on OS.VIEW_ID = OV.ID
+                                        inner join odf_objects O on ov.object_code = O.CODE AND O.PARENT_OBJECT_CODE = '${vElementID}'
+						UNION	
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_VIEW_ATTRIBUTES OA on OA.label_pk_id = cap.pk_id and cap.table_name in ('ODF_VIEW_ATTRIBUTES','ODF_VIEW_ATTRIBUTES_DESC','ODF_VIEW_ATTRIBUTES_INSTR','ODF_VIEW_ATTRIBUTES_TIP') and CAP.language_code = '${vLanguageCode}' 
+                                        inner join ODF_VIEWS OV on OA.VIEW_ID = OV.ID
+                                        inner join odf_objects O on ov.object_code = O.CODE AND O.PARENT_OBJECT_CODE = '${vElementID}'
+							where OA.attribute_code not in ('partition_code', 'name', 'code', 'page_layout', 'created_date','created_by','updated_by','last_updated_date', 'odf_obs_unit_id_list')
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:case value="SubObject">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<!-- Subobject Labels -->
+						<sql:query escapeText="false" var="vCaptions">
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join odf_objects O on o.id = cap.pk_id and cap.table_name = 'ODF_OBJECTS' and cap.language_code = '${vLanguageCode}'
+							where o.code = '${vElementID}'
+						UNION              
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_CUSTOM_ATTRIBUTES O on o.id = cap.pk_id and cap.table_name = 'ODF_CUSTOM_ATTRIBUTES' and cap.language_code = '${vLanguageCode}'
+							where o.object_name = '${vElementID}' and o.INTERNAL_NAME not in ('partition_code', 'name', 'code', 'page_layout')
+						UNION              
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join CMN_GRIDS G on G.id = cap.pk_id and cap.table_name = 'CMN_GRIDS' and cap.language_code = '${vLanguageCode}'
+							where g.dal_code = '${vElementID}' and g.dal_type = 'object' and nvl(G.PORTLET_ID,0)=0 
+						UNION              
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_VIEWS O on o.id = cap.pk_id and cap.table_name = 'ODF_VIEWS' and cap.language_code = '${vLanguageCode}' 
+							where o.object_code = '${vElementID}' 
+						UNION              
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_VIEW_SECTIONS O on o.id = cap.pk_id and cap.table_name = 'ODF_VIEW_SECTIONS' and cap.language_code = '${vLanguageCode}' 
+                                        inner join ODF_VIEWS V on V.object_code = '${vElementID}' and o.view_id = V.ID
+						UNION              
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_VIEW_ATTRIBUTES O on o.label_pk_id = cap.pk_id and cap.table_name in ('ODF_VIEW_ATTRIBUTES','ODF_VIEW_ATTRIBUTES_DESC','ODF_VIEW_ATTRIBUTES_INSTR','ODF_VIEW_ATTRIBUTES_TIP') and cap.language_code = '${vLanguageCode}' 
+                                        inner join ODF_VIEWS V on V.object_code = '${vElementID}' and o.view_id = V.ID
+							where O.attribute_code not in ('partition_code', 'name', 'code', 'page_layout', 'created_date','created_by','updated_by','last_updated_date', 'odf_obs_unit_id_list')
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:case value="StockObjectCustAttr">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<sql:query escapeText="false" var="vCaptions">
+							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
+							from CMN_CAPTIONS_NLS 
+							where language_code = '${vLanguageCode}' and 
+                            (table_name = 'ODF_CUSTOM_ATTRIBUTES'
+                                 and pk_id in (select id from ODF_CUSTOM_ATTRIBUTES where object_name = '${vMasterObject}' and INTERNAL_NAME = '${vElementID}'))		
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vMasterObject}.${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:case value="Page">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<sql:query escapeText="false" var="vCaptions">
+							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
+							from CMN_CAPTIONS_NLS 
+							where language_code = '${vLanguageCode}' and 
+                            (table_name = 'CMN_PAGES'
+                             and pk_id in (select id from CMN_PAGES where page_code = '${vElementID}'))
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:case value="Portlet">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<sql:query escapeText="false" var="vCaptions">
+							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
+							from CMN_CAPTIONS_NLS 
+							where language_code = '${vLanguageCode}' and 
+                            ((table_name = 'CMN_PORTLETS'
+                             and pk_id in (select P.ID from cmn_portlets P where P.portlet_code = '${vElementID}'))
+                             OR (table_name = 'CMN_GRID_COLS'
+                             and pk_id in (select GC.ID from cmn_portlets P, CMN_GRIDS G, CMN_GRID_COLS GC 
+										   where P.portlet_code = '${vElementID}' and P.ID = G.PORTLET_ID AND GC.GRID_ID = G.ID))
+                             OR (table_name = 'CMN_GRAPH_AXES'
+                             and pk_id in (select GA.ID from cmn_portlets P, CMN_GRAPHS G, CMN_GRAPH_AXES GA 
+                                           where P.portlet_code = '${vElementID}' and P.ID = G.PORTLET_ID AND GA.GRAPH_ID = G.ID))
+                             OR (table_name = 'CMN_GG_ITEMS'
+                             and pk_id in (select GG.ID from cmn_portlets P, CMN_GRAPHS G, CMN_GG_ITEMS GG 
+                                           where P.portlet_code = '${vElementID}' and P.ID = G.PORTLET_ID AND GG.GG_ID = G.ID)))
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:case value="Group">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<sql:query escapeText="false" var="vCaptions">
+							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
+							from CMN_CAPTIONS_NLS 
+							where language_code = '${vLanguageCode}' and 
+                            (table_name = 'CMN_SEC_GROUPS'
+                             and pk_id in (select id from CMN_SEC_GROUPS where group_code = '${vElementID}'))
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:case value="Menu">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<sql:query escapeText="false" var="vCaptions">
+							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
+							from CMN_CAPTIONS_NLS 
+							where language_code = '${vLanguageCode}' and 
+                            ((table_name = 'CMN_ACTIONS'
+                             and pk_id in (select A.id from CMN_ACTIONS A where A.ACTION_CODE = '${vElementID}' ))
+                             OR (table_name = 'CMN_MENU_ITEMS'
+                             and pk_id in (select I.id from CMN_ACTIONS A, CMN_MENU_ITEMS I where A.ACTION_CODE = '${vElementID}' AND A.ID = I.ACTION_ID)))
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:case value="StaticLookup">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<sql:query escapeText="false" var="vCaptions">
+							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
+							from CMN_CAPTIONS_NLS 
+							where language_code = '${vLanguageCode}' and 
+                            ((table_name = 'CMN_LOOKUPS'
+                             and pk_id in (select A.id from CMN_LOOKUPS A where A.LOOKUP_TYPE = '${vElementID}' ))
+                             OR (table_name = 'CMN_LOOKUP_TYPES'
+                             and pk_id in (select A.id from CMN_LOOKUP_TYPES A where A.LOOKUP_TYPE = '${vElementID}' )))
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:case value="DynamicLookup">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<sql:query escapeText="false" var="vCaptions">
+							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
+							from CMN_CAPTIONS_NLS 
+							where language_code = '${vLanguageCode}' and 
+                            ((table_name = 'CMN_LOOKUPS'
+                             and pk_id in (select A.id from CMN_LOOKUPS A where A.LOOKUP_TYPE = '${vElementID}' ))
+                             OR (table_name = 'CMN_LOOKUP_TYPES'
+                             and pk_id in (select A.id from CMN_LOOKUP_TYPES A where A.LOOKUP_TYPE = '${vElementID}' )))
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:case value="Report">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<sql:query escapeText="false" var="vCaptions">
+							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
+							from CMN_CAPTIONS_NLS 
+							where language_code = '${vLanguageCode}' and 
+                            table_name = 'CMN_SCH_JOB_DEFINITIONS'
+                            and pk_id in (select id from CMN_SCH_JOB_DEFINITIONS where JOB_CODE = '${vElementID}' and JOB_TYPE = 50316)
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:case value="Job">
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+						</core:if>
+
+						<sql:query escapeText="false" var="vCaptions">
+							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
+							from CMN_CAPTIONS_NLS 
+							where language_code = '${vLanguageCode}' and 
+                            table_name = 'CMN_SCH_JOB_DEFINITIONS'
+                            and pk_id in (select id from CMN_SCH_JOB_DEFINITIONS where JOB_CODE = '${vElementID}' and JOB_TYPE != 50316 )
+						</sql:query>
+						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+							<core:set var="vCaptionID">${row[0]}</core:set>
+							<core:set var="vCaptionType">${row[1]}</core:set>
+							<core:set var="vCaptionElementID">${row[2]}</core:set>
+							<core:set var="vCaptionName">${row[3]}</core:set>
+							<core:set var="vCaptionDesc">${row[4]}</core:set>
+							<core:if test="${DebugLevel &gt; 1}">
+								<gel:log level="debug" message="vCaptionID: ${vCaptionID}"/> 
+								<gel:log level="debug" message="vCaptionType: ${vCaptionType}"/> 
+								<gel:log level="debug" message="vCaptionElementID: ${vCaptionElementID}"/> 
+								<gel:log level="debug" message="vCaptionName: ${vCaptionName}"/> 
+								<gel:log level="debug" message="vCaptionDesc: ${vCaptionDesc}"/> 
+							</core:if>
+							
+							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
+							<gel:parse var="vCaptionInstance">
+								<instance
+									instanceCode="${vCaptionInstanceCode}"
+									objectCode="stproj_elem_xlat"
+									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+									<CustomInformation>
+										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+										<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+										<ColumnValue name="name">${vElementName}</ColumnValue>
+										<ColumnValue name="code">${vCaptionInstanceCode}</ColumnValue>
+										<ColumnValue name="caption_descr">${vCaptionDesc}</ColumnValue>
+										<ColumnValue name="caption_id">${vCaptionID}</ColumnValue>
+										<ColumnValue name="element_type">${vElementType}</ColumnValue>
+										<ColumnValue name="element_id">${vElementID}</ColumnValue>
+										<ColumnValue name="caption_location">${vCaptionType}</ColumnValue>
+										<ColumnValue name="caption_name">${vCaptionName}</ColumnValue>
+										<ColumnValue name="element_int_id">${vCaptionElementID}</ColumnValue>
+										<ColumnValue name="language_code">${vLanguageCode}</ColumnValue>
+										</CustomInformation>
+									<OBSAssocs completed="false"/>
+										<Security>
+											<UserSecurity
+												rightCode="odf_cst_stproj_elem_xlat_edit" userName="admin"/>
+										</Security>
+								</instance>
+							</gel:parse>
+							<!-- Adding the new elements to the project -->
+							<gel:set insert="true"
+								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+						</core:forEach>
+						
+					</core:case>
+					<core:default>
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log level="debug" message="Nao Implementado: ${vElementType}"/> 
+						</core:if>
+					</core:default>
+				</core:switch>				
+
+			</core:forEach>
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGROOT_${vStudioProjectID}.xml"/>
+			</core:if>
+
+			<!-- Calling XOG-->
+			<core:catch var="v_xog_exception">
+				<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+					<soap:message>
+						<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+							<soapenv:Header>
+								<xog:Auth>
+									<xog:SessionID>${sessionID}</xog:SessionID>
+								</xog:Auth>
+							</soapenv:Header>
+							<soapenv:Body>
+								<gel:include select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus"/>
+							</soapenv:Body>
+						</soapenv:Envelope>
+					</soap:message>
+				</soap:invoke>
+			</core:catch>
+            <core:choose>
+                <core:when test="${v_xog_exception != null}">
+                    <gel:out>[XOG]XOG operation failed: ${v_xog_exception}</gel:out>
+                    <gel:log category="XOG" level="ERROR">XOG operation failed: ${v_xog_exception}</gel:log>
+                </core:when>
+                <core:otherwise>
+                    <gel:set
+                        select="$runresult/soapenv:Envelope/soapenv:Body/XOGOutput" var="writeOutputRoot"/>
+                    <gel:set asString="true"
+                        select="$writeOutputRoot/Status/@state" var="XOGoutcome"/>
+                    <gel:set asString="true"
+                        select="$writeOutputRoot/Records/Record" var="XOGoutputrecords"/>
+                    <gel:set asString="true"
+                        select="$writeOutputRoot/Statistics/@totalNumberOfRecords" var="XOGtotalrecords"/>
+                    <gel:set asString="true"
+                        select="$writeOutputRoot/Statistics/@insertedRecords" var="XOGinsertedrecords"/>
+                    <gel:set asString="true"
+                        select="$writeOutputRoot/Statistics/@updatedRecords" var="XOGupdatedrecords"/>
+                    <gel:set asString="true"
+                        select="$writeOutputRoot/Statistics/@failureRecords" var="XOGfailurerecords"/>
+                    <!-- Check the XOG result -->
+                    <gel:out>[XOG]Document import for ${vStudioProjectID}</gel:out>
+                    <gel:out>[XOG]Status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:out>
+                    <gel:log category="XOG" level="INFO">[XOGDocument import for ${v_xog_resourceid} status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:log>
+                </core:otherwise>
+            </core:choose>
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:serialize var="${runresult}" fileName="${XOGlogFolder}/XOGResult_${vStudioProjectID}.xml"/>
+			</core:if>
+			<!-- Log out from XOG -->
+			<soap:invoke endpoint="${XOGURL}/niku/xog" var="logoutresult">
+				<soap:message>
+					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+						<soapenv:Header>
+							<xog:Auth>
+								<xog:SessionID>${sessionID}</xog:SessionID>
+							</xog:Auth>
+						</soapenv:Header>
+						<soapenv:Body>
+							<xog:Logout/>
+						</soapenv:Body>
+					</soapenv:Envelope>
+				</soap:message>
+			</soap:invoke>
+			
+			<!-- Preparing OUTPUT Excel File -->
+			<sql:query escapeText="false" var="vProject">
+				select XLAT_SPREADSHEET 
+				from odf_ca_stproj_project
+				Where id = ${vStudioProjectID}
+			</sql:query>
+			<core:forEach items="${vProject.rowsByIndex}" var="row">
+				<core:set var="vSpreadsheet">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vSpreadsheet    : ${vSpreadsheet}"/> 
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vFileName">${vSpreadsheet}</core:set>
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:log level="debug" message="Creating File: ${vFileName}"/> 
+			</core:if>
+	
+			<sql:query escapeText="false" var="vXlatElements">
+				select SE.ID, ELEMENT_TYPE, ELEMENT_ID, SE.NAME, LANG.NAME, CAPTION_NAME, CAPTION_DESCR, LKP.NAME
+				from odf_Ca_stproj_elem_xlat SE, CMN_LOOKUPS_V LKP, CMN_LANGUAGES_V LANG
+				Where LKP.language_code = 'en' and LKP.LOOKUP_TYPE = 'STPROJ_CAPTION_LOCATION' and LKP.LOOKUP_CODE = CAPTION_LOCATION
+				AND LANG.language_code = 'en' and LANG.LANGUAGE = SE.LANGUAGE_CODE
+				AND SE.ODF_PARENT_ID = ${vStudioProjectID}
+			</sql:query>
+
+			<core:new className="java.io.FileOutputStream" var="vSheet">
+				<core:arg type="java.lang.String" value="${vFileName}" />
+			</core:new>
+
+			<core:new className="java.io.OutputStreamWriter" var="vSheetOSW">
+				<core:arg type="java.io.OutputStream" value="${vSheet}" />
+				<core:arg type="java.lang.String" value="ISO8859_1" />
+			</core:new>
+
+			<core:new className="java.io.BufferedWriter" var="vData">
+				<core:arg type="java.io.OutputStreamWriter" value="${vSheetOSW}" />
+			</core:new>
+
+			<core:set var="vDataRow">InternalID,ElementType,ElementID,ElementName,Language,CaptionType,Caption(Name),Caption(Desc)</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="Writing Line: ${vDataRow}"/> 
+			</core:if>
+			<core:invoke method="write" on="${vData}" var="vOut">
+				<core:arg type="java.lang.String" value="${vDataRow}"/>
+				<core:arg type="java.lang.Integer" value="0"/>
+				<core:arg type="java.lang.Integer" value="93"/>
+			</core:invoke>
+			<core:invoke method="newLine" on="${vData}" var="vOut"/>
+
+			<core:forEach items="${vXlatElements.rowsByIndex}" var="row">
+				<core:set var="vXlatIntID">${row[0]}</core:set>
+				<core:set var="vXlatElementType">${row[1]}</core:set>
+				<core:set var="vXlatElementID">${row[2]}</core:set>
+				<core:set var="vXlatElementName">${row[3]}</core:set>
+				<core:set var="vXlatElementLang">${row[4]}</core:set>
+				<core:set var="vXlatCaptionName">${row[5]}</core:set>
+				<core:set var="vXlatCaptionDesc">${row[6]}</core:set>
+				<core:set var="vXlatCaptionType">${row[7]}</core:set>
+				<core:set var="vDataRow">${vXlatIntID},${vXlatElementType},${vXlatElementID},${vXlatElementName},${vXlatElementLang},${vXlatCaptionType},${vXlatCaptionName},${vXlatCaptionDesc}</core:set>
+				<core:invoke method="length" on="${vDataRow}" var="vCalcLength"/>
+				
+				<core:if test="${DebugLevel &gt; 0}">
+					<gel:log level="debug" message="Writing Line: ${vDataRow} - CalcLength: ${vCalcLength}"/> 
+				</core:if>
+				<core:invoke method="write" on="${vData}" var="vOut">
+					<core:arg type="java.lang.String" value="${vDataRow}"/>
+					<core:arg type="java.lang.Integer" value="0"/>
+					<core:arg type="java.lang.Integer" value="${vCalcLength}"/>
+				</core:invoke>
+				<core:invoke method="newLine" on="${vData}" var="vOut"/>
+	
+			</core:forEach>
+			<core:invoke method="flush" on="${vData}" var="vOut"/>
+			<core:invoke method="flush" on="${vSheetOSW}" var="vOut"/>
+			<core:invoke method="close" on="${vData}" var="vOut"/>		
+			<core:invoke method="close" on="${vSheetOSW}" var="vOut"/>		
+			<core:invoke method="close" on="${vSheet}" var="vOut"/>		
+		</core:otherwise>
+    </core:choose>		
+</gel:script>

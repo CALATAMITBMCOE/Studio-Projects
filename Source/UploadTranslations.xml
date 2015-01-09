@@ -1,0 +1,90 @@
+<gel:script 
+ xmlns:core="jelly:core" 
+    xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
+    xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:sql="jelly:sql"
+    xmlns:xog="http://www.niku.com/xog"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
+    xmlns:util="jelly:util"
+    xmlns:q="http://www.niku.com/xog/Query">
+	
+	<core:set var="DebugLevel">1</core:set>
+	<core:set var="vFound">0</core:set>
+	
+	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
+	
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Start Script"/>
+		<gel:log level="debug" message="Studio Project: ${vStudioProjectID}"/> 
+	</core:if>
+
+    <gel:setDataSource dbId="Niku"/>
+	
+	<sql:query escapeText="false" var="vProject">
+		select XLAT_SPREADSHEET 
+		from odf_ca_stproj_project
+		Where id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vProject.rowsByIndex}" var="row">
+		<core:set var="vSpreadsheet">${row[0]}</core:set>
+
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vSpreadsheet: ${vSpreadsheet}"/>
+		</core:if>
+		
+		<core:set var="regex">[,]</core:set>
+		<core:new className="java.io.FileInputStream" var="vSheet">
+			<core:arg type="java.lang.String" value="${vSpreadsheet}" />
+		</core:new>
+
+		<core:new className="java.io.InputStreamReader" var="vSheetISR">
+			<core:arg type="java.io.InputStream" value="${vSheet}" />
+			<core:arg type="java.lang.String" value="ISO8859_1" />
+		</core:new>
+
+		<core:new className="java.io.BufferedReader" var="vData">
+			<core:arg type="java.io.InputStreamReader" value="${vSheetISR}" />
+		</core:new>
+
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="Encoding: ${vSheetISR.getEncoding()}"/>
+		</core:if>
+
+		<core:set var="vDataRow" value="${vData.readLine()}" />
+
+		<core:while test="${vDataRow != null}">
+
+			<core:set var="vDataRow" value="${vDataRow.split(regex)}" />
+
+			<core:if test="${DebugLevel &gt; 2}">
+				<gel:log level="debug" message="${vDataRow[0]}, ${vDataRow[1]}, ${vDataRow[2]}, ${vDataRow[3]}, ${vDataRow[4]}, ${vDataRow[5]}, ${vDataRow[6]}, ${vDataRow[7]}"/>
+			</core:if>
+
+			<core:set var="vCaptionIntID">${vDataRow[0]}</core:set>
+			<core:set var="vCaptionName">${vDataRow[6]}</core:set>
+			<core:set var="vCaptionDesc">${vDataRow[7]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vCaptionIntID:${vCaptionIntID}. vCaptionName:${vCaptionName}. vCaptionDesc:${vCaptionDesc}."/>
+			</core:if>
+
+			<core:if test="${vCaptionIntID != 'InternalID'}">
+				<sql:update>
+					update odf_ca_stproj_elem_xlat
+					set caption_name = '${vCaptionName}', caption_descr = '${vCaptionDesc}'
+					where id = ${vCaptionIntID}
+				</sql:update>	
+			</core:if>
+			
+			<core:set var="vDataRow" value="${vData.readLine()}" />
+			
+		</core:while>
+		<core:invoke method="close" on="${vData}" var="vOut"/>		
+		<core:invoke method="close" on="${vSheetISR}" var="vOut"/>		
+		<core:invoke method="close" on="${vSheet}" var="vOut"/>		
+	</core:forEach>
+	
+</gel:script>

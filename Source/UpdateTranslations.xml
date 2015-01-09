@@ -1,0 +1,53 @@
+<gel:script 
+ xmlns:core="jelly:core" 
+    xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
+    xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:sql="jelly:sql"
+    xmlns:xog="http://www.niku.com/xog"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
+    xmlns:util="jelly:util"
+    xmlns:q="http://www.niku.com/xog/Query">
+	
+	<core:set var="DebugLevel">1</core:set>
+	<core:set var="vFound">0</core:set>
+	
+	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
+
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Start Script"/>
+		<gel:log level="debug" message="Studio Project: ${vStudioProjectID}"/> 
+	</core:if>
+
+    <gel:setDataSource dbId="Niku"/>
+	
+	<sql:query escapeText="false" var="vCaptions">
+		select caption_descr, caption_name, caption_id 
+		from odf_ca_stproj_elem_xlat
+		Where odf_parent_id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vCaptions.rowsByIndex}" var="row">
+		<core:set var="vCaptionDesc">${row[0]}</core:set>
+		<core:set var="vCaptionName">${row[1]}</core:set>
+		<core:set var="vCaptionIntID">${row[2]}</core:set>
+
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="Atualizando: CaptionID=${vCaptionIntID}, Name=${vCaptionName}, Desc=${vCaptionDesc}"/>
+		</core:if>
+		
+		<sql:update>
+			update cmn_captions_nls 
+			set name = '${vCaptionName}', description= '${vCaptionDesc}'
+			where id = ${vCaptionIntID}
+		</sql:update>
+	</core:forEach>
+	
+	<sql:update>
+		delete odf_ca_stproj_elem_xlat
+		Where odf_parent_id = ${vStudioProjectID}
+	</sql:update>
+	
+</gel:script>

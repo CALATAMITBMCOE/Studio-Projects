@@ -1,0 +1,832 @@
+<gel:script 
+ xmlns:core="jelly:core" 
+    xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
+    xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:sql="jelly:sql"
+    xmlns:xog="http://www.niku.com/xog"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
+    xmlns:util="jelly:util"
+    xmlns:q="http://www.niku.com/xog/Query">
+	
+	<core:set var="vFound">0</core:set>
+	
+	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
+	
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Start Script"/>
+		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="debug" message=">>Persisted XOG URL   : ${XOGURL}"/> 
+		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/> 
+		<gel:log level="debug" message=">>Persisted WEB Folder: ${XOGwebFolder}"/> 
+		<gel:log level="debug" message=">>Persisted SessionID : ${sessionID}"/> 
+		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
+	</core:if>
+
+    <gel:setDataSource dbId="Niku"/>
+	
+	<sql:query escapeText="false" var="vProject">
+		select PACKAGING_PATH, CODE, TARGET_INSTANCE from odf_ca_stproj_project
+		Where id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vProject.rowsByIndex}" var="row">
+		<core:set var="vPackagingPath">${row[0]}</core:set>
+		<core:set var="vStudioProjectCODE">${row[1]}</core:set>
+		<core:set var="vInstance">${row[2]}</core:set>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
+			<gel:log level="debug" message="vStudioProjectCODE: ${vStudioProjectCODE}"/> 
+			<gel:log level="debug" message="vInstance: 			${vInstance}"/> 
+		</core:if>
+	</core:forEach>
+
+	<!-- First, package Seed Data-->
+	<sql:query escapeText="false" var="vElements">
+		select distinct data_object_type, object_order from odf_ca_stproj_data sd
+		where data_type = 'Seed'
+		and odf_parent_id = ${vStudioProjectID}
+		order by object_order 
+	</sql:query>
+	<core:forEach items="${vElements.rowsByIndex}" var="row">
+		<core:set var="vObject">${row[0]}</core:set>
+		<core:set var="vOrder">${row[1]}</core:set>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vObject   : ${vObject}  Order :${vOrder}"/> 
+		</core:if>
+
+		<!-- This is the XML Root Document-->
+		<gel:parse var="v_xml_root">
+			<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
+				<Header version="13" action="read" objectType="${vObject}" externalSource="NIKU">
+				</Header>
+			</NikuDataBus>
+		</gel:parse>
+
+		<core:switch on="${vObject}">
+			<core:case value="resource">
+				<gel:parse var="v_args">
+					<args name="include_contact" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_management" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_custom" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_financial" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>					
+			<core:case value="application">
+				<gel:parse var="v_args">
+					<args name="order_by_1" value="name"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="order_by_2" value="objectID"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>					
+			<core:case value="asset">
+				<gel:parse var="v_args">
+					<args name="order_by_1" value="name"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="order_by_2" value="objectID"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>					
+			<core:case value="otherInvestment">
+				<gel:parse var="v_args">
+					<args name="order_by_1" value="name"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="order_by_2" value="objectID"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>
+			<core:case value="service">
+				<gel:parse var="v_args">
+					<args name="order_by_1" value="name"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="order_by_2" value="objectID"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>	
+			<core:case value="product">
+				<gel:parse var="v_args">
+					<args name="order_by_1" value="name"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="order_by_2" value="objectID"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>	
+			<core:case value="idea">
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>					
+			<core:case value="project">
+				<gel:parse var="v_args">
+					<args name="order_by_1" value="name"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="order_by_2" value="projectID"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_dependencies" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_subprojects" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_baselines" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_estimates" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_actuals" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_custom" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>
+		</core:switch>				
+
+
+		<core:set var="vIteration" value="0"/>
+		<core:set var="vQuery" value=""/>
+		<sql:query escapeText="false" var="vElements">
+			select data_filter_attr, object_code, data_filter_contents from odf_ca_stproj_data
+			where odf_parent_id = ${vStudioProjectID}
+			and data_object_type = '${vObject}'
+			and data_type = 'Seed'
+			and object_order = ${vOrder}
+		</sql:query>
+		
+		<core:forEach items="${vElements.rowsByIndex}" var="row">
+			<core:if test="${vObject=='customObjectInstance'}">
+				<core:set var="vObjectCode">${row[1]}</core:set>
+			</core:if>
+			<core:if test="${vObject!='customObjectInstance'}">
+				<core:set var="vObjectCode">${row[0]}</core:set>
+			</core:if>
+			<core:set var="vCode">${row[2]}</core:set>
+			<core:if test="${vIteration==0}">
+				<core:set var="vQuery" value="${vCode}"/>
+			</core:if>
+			<core:if test="${vIteration!=0}">
+				<core:set var="vQuery" value="${vQuery},${vCode}"/>
+			</core:if>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vCode  : ${vCode}"/> 
+				<gel:log level="debug" message="vQuery : ${vQuery}"/> 
+			</core:if>
+			<core:set var="vIteration" value="1"/>
+		</core:forEach>
+
+		<core:if test="${vObjectCode==''}">
+			<core:set var="vObjectCode" value="objectID"/>
+			<core:switch on="${vObject}">
+				<core:case value="benefitPlan">
+					<core:set var="vObjectCode" value="code"/>
+				</core:case>
+				<core:case value="budgetPlan">
+					<core:set var="vObjectCode" value="code"/>
+				</core:case>
+				<core:case value="costPlan">
+					<core:set var="vObjectCode" value="code"/>
+				</core:case>
+				<core:case value="category">
+					<core:set var="vObjectCode" value="code"/>
+				</core:case>
+				<core:case value="company">
+					<core:set var="vObjectCode" value="name"/>
+				</core:case>
+				<core:case value="resource">
+					<core:set var="vObjectCode" value="resourceID"/>
+				</core:case>
+				<core:case value="role">
+					<core:set var="vObjectCode" value="resourceID"/>
+				</core:case>
+				<core:case value="change">
+					<core:set var="vObjectCode" value="changeCode"/>
+				</core:case>
+				<core:case value="risk">
+					<core:set var="vObjectCode" value="riskCode"/>
+				</core:case>
+				<core:case value="issue">
+					<core:set var="vObjectCode" value="issueCode"/>
+				</core:case>
+				<core:case value="department">
+					<core:set var="vObjectCode" value="entity"/>
+				</core:case>
+				<core:case value="location">
+					<core:set var="vObjectCode" value="entity"/>
+				</core:case>
+				<core:case value="entity">
+					<core:set var="vObjectCode" value="entity"/>
+				</core:case>
+				<core:case value="incident">
+					<core:set var="vObjectCode" value="incidentCode"/>
+				</core:case>
+				<core:case value="matrix">
+					<core:set var="vObjectCode" value="name"/>
+				</core:case>
+				<core:case value="obs">
+					<core:set var="vObjectCode" value="name"/>
+				</core:case>
+				<core:case value="chargecode">
+					<core:set var="vObjectCode" value="chargeCodeID"/>
+				</core:case>
+				<core:case value="project">
+					<core:set var="vObjectCode" value="projectID"/>
+				</core:case>
+				<core:case value="timeperiod">
+					<core:set var="vObjectCode" value="start"/>
+				</core:case>
+				<core:case value="typecode">
+					<core:set var="vObjectCode" value="open"/>
+				</core:case>
+				<core:case value="requisition">
+					<core:set var="vObjectCode" value="requisitionCode"/>
+				</core:case>
+				<core:case value="skill">
+					<core:set var="vObjectCode" value="skillName"/>
+				</core:case>
+				<core:case value="transactionclass">
+					<core:set var="vObjectCode" value="transclass"/>
+				</core:case>
+			</core:switch>	
+		</core:if>
+		<core:if test="${vObject=='customObjectInstance'}">
+			<gel:parse var="vInstance">
+				<CustomObjectInstanceQuery>
+					<Filter name="objectCode" criteria="EQUALS">${vObjectCode}</Filter>
+					<Filter name="instanceCode" criteria="OR">${vQuery}</Filter>
+				</CustomObjectInstanceQuery>
+			</gel:parse>
+		</core:if>
+		<core:if test="${vObject!='customObjectInstance'}">
+			<gel:parse var="vInstance">
+				<Query>
+					<Filter name="${vObjectCode}" criteria="OR">${vQuery}</Filter>
+				</Query>	
+			</gel:parse>
+		</core:if>
+		<gel:set select="$v_xml_root/NikuDataBus" value="${vInstance}" insert="true"/>
+		
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_60-SeedData_${vStudioProjectID}_${vObject}_${vOrder}.xml"/>
+		</core:if>
+			
+		<!-- Calling XOG-->
+		<core:catch var="v_xog_exception">
+			<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+				<soap:message>
+					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+						<soapenv:Header>
+							<xog:Auth>
+								<xog:SessionID>${sessionID}</xog:SessionID>
+							</xog:Auth>
+						</soapenv:Header>
+						<soapenv:Body>
+							<gel:include select="$v_xml_root/NikuDataBus"/>
+						</soapenv:Body>
+					</soapenv:Envelope>
+				</soap:message>
+			</soap:invoke>
+		</core:catch>
+			
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:serialize var="${runresult}" fileName="${XOGlogFolder}/XOGWRITE_60-SeedData_${vStudioProjectID}_${vObject}_${vOrder}.xml"/>
+		</core:if>
+		
+		<core:if test="${vObject=='customObjectInstance'}">
+			<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance" var="vInstance1">
+				<gel:forEach select="$vInstance1/CustomInformation/instance" var="vInstance2">
+					<gel:forEach select="$vInstance2/CustomInformation/ColumnValue" var="vColumn2">
+						<gel:set var="vColumnName" select="$vColumn2/@name" asString="true"/>
+						<core:if test="${vColumnName=='odf_cncrt_parent_id' or vColumnName=='odf_parent_id'}">
+							<gel:set value="" select="$vColumn2/text()"/>
+						</core:if>
+					</gel:forEach>
+					<gel:forEach select="$vInstance2/CustomInformation/instance" var="vInstance3">
+						<gel:forEach select="$vInstance3/CustomInformation/ColumnValue" var="vColumn3">
+							<gel:set var="vColumnName" select="$vColumn3/@name" asString="true"/>
+							<core:if test="${vColumnName=='odf_cncrt_parent_id' or vColumnName=='odf_parent_id'}">
+								<gel:set value="" select="$vColumn3/text()"/>
+							</core:if>
+						</gel:forEach>
+					</gel:forEach>
+				</gel:forEach>
+			</gel:forEach>
+		</core:if>
+		
+		<!--Generating Final OUTPUT -->
+		<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
+		<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/60-SeedData_${vObject}_${vOrder}.xml"/>
+		<core:if test="${DebugLevel &gt; 0}">
+			<gel:log level="debug" message="Final Output File: ${vPackagingPath}/60-SeedData_${vObject}_${vOrder}.xml"/> 
+		</core:if>
+	</core:forEach>
+	
+	<!-- Second, package Demo Data-->
+	<sql:query escapeText="false" var="vElements">
+		select distinct data_object_type, object_order from odf_ca_stproj_data sd
+		where data_type = 'Demo'
+		and odf_parent_id = ${vStudioProjectID}
+		order by object_order 
+	</sql:query>
+	<core:forEach items="${vElements.rowsByIndex}" var="row">
+		<core:set var="vObject">${row[0]}</core:set>
+		<core:set var="vOrder">${row[1]}</core:set>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vObject   : ${vObject}  Order :${vOrder}"/> 
+		</core:if>
+
+		<!-- This is the XML Root Document-->
+		<gel:parse var="v_xml_root">
+			<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
+				<Header version="13" action="read" objectType="${vObject}" externalSource="NIKU">
+				</Header>
+			</NikuDataBus>
+		</gel:parse>
+
+		<core:switch on="${vObject}">
+			<core:case value="resource">
+				<gel:parse var="v_args">
+					<args name="include_contact" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_management" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_custom" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_financial" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>					
+			<core:case value="application">
+				<gel:parse var="v_args">
+					<args name="order_by_1" value="name"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="order_by_2" value="objectID"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>					
+			<core:case value="asset">
+				<gel:parse var="v_args">
+					<args name="order_by_1" value="name"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="order_by_2" value="objectID"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>					
+			<core:case value="otherInvestment">
+				<gel:parse var="v_args">
+					<args name="order_by_1" value="name"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="order_by_2" value="objectID"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>
+			<core:case value="service">
+				<gel:parse var="v_args">
+					<args name="order_by_1" value="name"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="order_by_2" value="objectID"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>	
+			<core:case value="product">
+				<gel:parse var="v_args">
+					<args name="order_by_1" value="name"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="order_by_2" value="objectID"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>	
+			<core:case value="idea">
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>					
+			<core:case value="project">
+				<gel:parse var="v_args">
+					<args name="order_by_1" value="name"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="order_by_2" value="projectID"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_tasks" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_dependencies" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_subprojects" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_resources" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_baselines" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_allocations" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_estimates" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_actuals" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+				<gel:parse var="v_args">
+					<args name="include_custom" value="true"/>
+				</gel:parse>
+				<gel:set select="$v_xml_root/NikuDataBus/Header" value="${v_args}" insert="true"/>
+			</core:case>
+		</core:switch>				
+
+
+		<core:set var="vIteration" value="0"/>
+		<core:set var="vQuery" value=""/>
+		<sql:query escapeText="false" var="vElements">
+			select data_filter_attr, object_code, data_filter_contents from odf_ca_stproj_data
+			where odf_parent_id = ${vStudioProjectID}
+			and data_object_type = '${vObject}'
+			and data_type = 'Demo'
+			and object_order = ${vOrder}
+		</sql:query>
+		
+		<core:forEach items="${vElements.rowsByIndex}" var="row">
+			<core:if test="${vObject=='customObjectInstance'}">
+				<core:set var="vObjectCode">${row[1]}</core:set>
+			</core:if>
+			<core:if test="${vObject!='customObjectInstance'}">
+				<core:set var="vObjectCode">${row[0]}</core:set>
+			</core:if>
+			<core:set var="vCode">${row[2]}</core:set>
+			<core:if test="${vIteration==0}">
+				<core:set var="vQuery" value="${vCode}"/>
+			</core:if>
+			<core:if test="${vIteration!=0}">
+				<core:set var="vQuery" value="${vQuery},${vCode}"/>
+			</core:if>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vCode  		: ${vCode}"/> 
+				<gel:log level="debug" message="vQuery 		: ${vQuery}"/> 
+				<gel:log level="debug" message="vObjectCode : ${vObjectCode}"/> 
+			</core:if>
+			<core:set var="vIteration" value="1"/>
+		</core:forEach>
+
+		<core:if test="${vObjectCode==''}">
+			<core:set var="vObjectCode" value="objectID"/>
+			<core:switch on="${vObject}">
+				<core:case value="benefitPlan">
+					<core:set var="vObjectCode" value="code"/>
+				</core:case>
+				<core:case value="budgetPlan">
+					<core:set var="vObjectCode" value="code"/>
+				</core:case>
+				<core:case value="costPlan">
+					<core:set var="vObjectCode" value="code"/>
+				</core:case>
+				<core:case value="category">
+					<core:set var="vObjectCode" value="code"/>
+				</core:case>
+				<core:case value="company">
+					<core:set var="vObjectCode" value="name"/>
+				</core:case>
+				<core:case value="resource">
+					<core:set var="vObjectCode" value="resourceID"/>
+				</core:case>
+				<core:case value="role">
+					<core:set var="vObjectCode" value="resourceID"/>
+				</core:case>
+				<core:case value="change">
+					<core:set var="vObjectCode" value="changeCode"/>
+				</core:case>
+				<core:case value="risk">
+					<core:set var="vObjectCode" value="riskCode"/>
+				</core:case>
+				<core:case value="issue">
+					<core:set var="vObjectCode" value="issueCode"/>
+				</core:case>
+				<core:case value="department">
+					<core:set var="vObjectCode" value="entity"/>
+				</core:case>
+				<core:case value="location">
+					<core:set var="vObjectCode" value="entity"/>
+				</core:case>
+				<core:case value="entity">
+					<core:set var="vObjectCode" value="entity"/>
+				</core:case>
+				<core:case value="incident">
+					<core:set var="vObjectCode" value="incidentCode"/>
+				</core:case>
+				<core:case value="matrix">
+					<core:set var="vObjectCode" value="name"/>
+				</core:case>
+				<core:case value="obs">
+					<core:set var="vObjectCode" value="name"/>
+				</core:case>
+				<core:case value="chargecode">
+					<core:set var="vObjectCode" value="chargeCodeID"/>
+				</core:case>
+				<core:case value="project">
+					<core:set var="vObjectCode" value="projectID"/>
+				</core:case>
+				<core:case value="timeperiod">
+					<core:set var="vObjectCode" value="start"/>
+				</core:case>
+				<core:case value="typecode">
+					<core:set var="vObjectCode" value="open"/>
+				</core:case>
+				<core:case value="requisition">
+					<core:set var="vObjectCode" value="requisitionCode"/>
+				</core:case>
+				<core:case value="skill">
+					<core:set var="vObjectCode" value="skillName"/>
+				</core:case>
+				<core:case value="transactionclass">
+					<core:set var="vObjectCode" value="transclass"/>
+				</core:case>
+			</core:switch>	
+		</core:if>
+		<core:if test="${vObject=='customObjectInstance'}">
+			<gel:parse var="vInstance">
+				<CustomObjectInstanceQuery>
+					<Filter name="objectCode" criteria="EQUALS">${vObjectCode}</Filter>
+					<Filter name="instanceCode" criteria="OR">${vQuery}</Filter>
+				</CustomObjectInstanceQuery>
+			</gel:parse>
+		</core:if>
+		<core:if test="${vObject!='customObjectInstance'}">
+			<gel:parse var="vInstance">
+				<Query>
+					<Filter name="${vObjectCode}" criteria="OR">${vQuery}</Filter>
+				</Query>	
+			</gel:parse>
+		</core:if>
+		<gel:set select="$v_xml_root/NikuDataBus" value="${vInstance}" insert="true"/>
+		
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:serialize var="${v_xml_root}" fileName="${XOGwebFolder}/XOGREAD_90-DemoData_${vStudioProjectID}_${vObject}_${vOrder}.xml"/>
+			<gel:log level="debug" message="XOG Results can be found at: ${XOGURL}/niku/XOGREAD_90-DemoData_${vStudioProjectID}_${vObject}_${vOrder}.xml"/> 
+		</core:if>
+			
+		<!-- Calling XOG-->
+		<core:catch var="v_xog_exception">
+			<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+				<soap:message>
+					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+						<soapenv:Header>
+							<xog:Auth>
+								<xog:SessionID>${sessionID}</xog:SessionID>
+							</xog:Auth>
+						</soapenv:Header>
+						<soapenv:Body>
+							<gel:include select="$v_xml_root/NikuDataBus"/>
+						</soapenv:Body>
+					</soapenv:Envelope>
+				</soap:message>
+			</soap:invoke>
+		</core:catch>
+		
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:serialize var="${runresult}" fileName="${XOGwebFolder}/XOGWRITE_90-DemoData_${vStudioProjectID}_${vObject}_${vOrder}.xml"/>
+			<gel:log level="debug" message="XOG Results can be found at: ${XOGURL}/niku/XOGWRITE_90-DemoData_${vStudioProjectID}_${vObject}_${vOrder}.xml"/> 
+		</core:if>
+		
+		<core:if test="${vObject=='customObjectInstance'}">
+			<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance" var="vInstance1">
+				<gel:forEach select="$vInstance1/CustomInformation/instance" var="vInstance2">
+					<gel:forEach select="$vInstance2/CustomInformation/ColumnValue" var="vColumn2">
+						<gel:set var="vColumnName" select="$vColumn2/@name" asString="true"/>
+						<core:if test="${vColumnName=='odf_cncrt_parent_id' or vColumnName=='odf_parent_id'}">
+							<gel:set value="" select="$vColumn2/text()"/>
+						</core:if>
+					</gel:forEach>
+					<gel:forEach select="$vInstance2/CustomInformation/instance" var="vInstance3">
+						<gel:forEach select="$vInstance3/CustomInformation/ColumnValue" var="vColumn3">
+							<gel:set var="vColumnName" select="$vColumn3/@name" asString="true"/>
+							<core:if test="${vColumnName=='odf_cncrt_parent_id' or vColumnName=='odf_parent_id'}">
+								<gel:set value="" select="$vColumn3/text()"/>
+							</core:if>
+						</gel:forEach>
+					</gel:forEach>
+				</gel:forEach>
+			</gel:forEach>
+		</core:if>
+		
+			
+		<!--Generating Final OUTPUT -->
+		<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
+		<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/90-DemoData_${vObject}_${vOrder}.xml"/>
+		<core:if test="${DebugLevel &gt; 0}">
+			<gel:log level="debug" message="Final Output File: ${vPackagingPath}/90-DemoData_${vObject}_${vOrder}.xml"/> 
+		</core:if>
+	</core:forEach>
+
+</gel:script>

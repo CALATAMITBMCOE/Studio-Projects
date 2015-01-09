@@ -1,0 +1,283 @@
+<gel:script 
+ xmlns:core="jelly:core" 
+    xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
+    xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:sql="jelly:sql"
+    xmlns:xog="http://www.niku.com/xog"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
+    xmlns:util="jelly:util"
+    xmlns:q="http://www.niku.com/xog/Query">
+	
+	<core:set var="vFound">0</core:set>
+	
+	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Start Script"/>
+		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="debug" message=">>Persisted XOG URL  : ${XOGURL}"/> 
+		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/> 
+		<gel:log level="debug" message=">>Persisted SessionID: ${sessionID}"/> 
+		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
+	</core:if>
+
+    <gel:setDataSource dbId="Niku"/>
+	
+	<sql:query escapeText="false" var="vProject">
+		select PACKAGING_PATH, INITIALS from odf_ca_stproj_project
+		Where id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vProject.rowsByIndex}" var="row">
+		<core:set var="vPackagingPath">${row[0]}</core:set>
+		<core:set var="vProjectInitials">${row[1]}</core:set>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
+		</core:if>
+	</core:forEach>
+			
+	<sql:query escapeText="false" var="vElements">
+		select distinct ELEMENT_ID from odf_ca_stproj_element
+		where element_type = 'StockSubObject'
+		and odf_parent_id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vElements.rowsByIndex}" var="row">
+		<!-- This is the XML Root Document-->
+		<core:set var="vObjectCode">${row[0]}</core:set>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vObjectCode   : ${vObjectCode}"/> 
+		</core:if>
+
+		<gel:parse var="v_xml_root">
+			<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
+				<Header version="8.0" action="read" objectType="contentPack" externalSource="NIKU">
+					<args contentType="object" name="order_by_1" value="code"/>
+					<args name="singleContentType" value="object"/>
+					<args name="no_dependencies" value="true"/>
+				</Header>
+			</NikuDataBus>
+		</gel:parse>
+
+		<gel:parse var="vElementInstance">
+			<ObjectQuery>
+				<Filter name="object_code" criteria="EQUALS">${vObjectCode}</Filter>
+			</ObjectQuery>
+		</gel:parse>
+			
+		<gel:set select="$v_xml_root/NikuDataBus" value="${vElementInstance}" insert="true"/>
+		<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_06B-StockSubObject_${vObjectCode}_${vStudioProjectID}.xml"/>
+		</core:if>
+	
+		<!-- Calling XOG-->
+		<core:catch var="v_xog_exception">
+			<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+				<soap:message>
+					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+						<soapenv:Header>
+							<xog:Auth>
+								<xog:SessionID>${sessionID}</xog:SessionID>
+							</xog:Auth>
+						</soapenv:Header>
+						<soapenv:Body>
+							<gel:include select="$v_xml_root/NikuDataBus"/>
+						</soapenv:Body>
+					</soapenv:Envelope>
+				</soap:message>
+			</soap:invoke>
+		</core:catch>
+			
+		<!--Serializing Full Master Object for Debugging-->
+		<core:if test="${DebugLevel &gt; 0}">
+			<gel:serialize var="${runresult}" fileName="${XOGlogFolder}/XOGWRITE_06B-StockSubObject_Full_${vObjectCode}_${vStudioProjectID}.xml"/>
+		</core:if>
+		
+		<!-- Preparing New Master Instance ONLY with Custom Information-->
+		<gel:parse var="v_xml_new">
+			<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_contentPack.xsd">
+				<Header action="write" externalSource="NIKU" objectType="contentPack" version="8.0"/>
+				<contentPack update="true">
+					<objects>
+					</objects>
+				</contentPack>
+			</NikuDataBus>
+		</gel:parse>
+
+		<!-- Identify correct SubObject -->
+		<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/object" var="vSubObject">
+			<gel:set var="vSubObjectCode" select="$vSubObject/@code" asString="true"/>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vSubObjectCode: ${vSubObjectCode}"/> 
+			</core:if>
+			<core:if test="${vSubObjectCode == vObjectCode}">
+				<!-- Found the Correct SubObject-->
+				<gel:log level="debug" message="Found Correct SubObject:${vSubObjectCode}."/> 
+				<gel:set select="$vSubObject" var="vCorrectSubObject"/>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:serialize var="${vCorrectSubObject}" fileName="${XOGlogFolder}/XOGWRITE_06B-StockSubObject_${vObjectCode}_${vStudioProjectID}.xml"/>
+				</core:if>
+			</core:if>
+		</gel:forEach>
+				
+		<!-- ObjectSection -->
+		<gel:set var="vMIcode" select="$vCorrectSubObject/@code" asString="true"/>
+		<gel:set var="vMIraiseEvents" select="$vCorrectSubObject/@raiseEvents" asString="true"/>
+		<gel:set var="vMIsource" select="$vCorrectSubObject/@source" asString="true"/>
+
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vMIcode: ${vMIcode}"/> 
+			<gel:log level="debug" message="vMIraiseEvents: ${vMIraiseEvents}"/> 
+			<gel:log level="debug" message="vMIsource: ${vMIsource}"/> 
+		</core:if>
+			
+		<gel:parse var="vMasterInstance">
+			<object code="${vMIcode}" raiseEvents="${vMIraiseEvents}"
+				source="${vMIsource}" update="true">
+			</object>
+		</gel:parse>
+			
+		<!-- nls Section -->
+		<gel:forEach select="$vCorrectSubObject/nls" var="vNLS">
+			<gel:set select="$vMasterInstance/object" value="${vNLS}" insert="true"/>
+		</gel:forEach>
+
+		<!-- customAttributes Section -->
+		<!-- Identify custom attributes to look for -->
+		<sql:query escapeText="false" var="vCustomAttributes">
+			select CA.COLUMN_NAME, CAP.NAME from ODF_CUSTOM_ATTRIBUTES CA, CMN_CAPTIONS_NLS CAP
+			where upper(CA.column_name) like upper('${vProjectInitials}%')
+			AND CA.OBJECT_NAME ='${vObjectCode}'
+			AND CAP.LANGUAGE_CODE = 'en'
+			AND CAP.TABLE_NAME = 'ODF_CUSTOM_ATTRIBUTES'
+			AND CA.ID = CAP.PK_ID
+		</sql:query>
+		<core:forEach items="${vCustomAttributes.rowsByIndex}" var="row">
+			<core:set var="vCustAttrCode">${row[0]}</core:set>
+			<core:set var="vCustAttrName">${row[1]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vCustAttrCode   : ${vCustAttrCode}"/> 
+				<gel:log level="debug" message="vCustAttrName   : ${vCustAttrName}"/> 
+			</core:if>
+
+			<gel:forEach select="$vCorrectSubObject/customAttribute" var="vcustomAttribute">
+				<gel:set var="vAttrCode" select="$vcustomAttribute/@code" asString="true"/>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vAttrCode: ${vAttrCode}"/> 
+				</core:if>
+				<core:if test="${vAttrCode == vCustAttrCode}">
+					<gel:set select="$vMasterInstance/object" value="${vcustomAttribute}" insert="true"/>
+				</core:if>
+			</gel:forEach>
+		</core:forEach>
+
+		<!--Links Section-->
+		<gel:parse var="vLinksInstance">
+			<links objectCode="${vObjectCode}"/>
+		</gel:parse>
+		<!-- Identify custom links to look for -->
+		<core:set var="vFoundLink" value="0"/>
+		<sql:query escapeText="false" var="vCustomLinks">
+			select OL.ACTION,  CAP.NAME
+			from odf_links OL inner join cmn_captions_nls CAP on CAP.table_name='ODF_LINKS' and CAP.PK_ID = OL.ID and cap.language_code='en'
+			where target_type = 'object' and target = '${vObjectCode}' and is_system=0
+		</sql:query>
+		<core:forEach items="${vCustomLinks.rowsByIndex}" var="row">
+			<core:set var="vFoundLink" value="1"/>
+			<core:set var="vCustLinkCode">${row[0]}</core:set>
+			<core:set var="vCustLinkName">${row[1]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vCustLinkCode   : ${vCustLinkCode}"/> 
+				<gel:log level="debug" message="vCustLinkName   : ${vCustLinkName}"/> 
+			</core:if>
+
+			<gel:forEach select="$vCorrectSubObject/links/link" var="vcustomLink">
+				<gel:set var="vLinkCode" select="$vcustomLink/@action" asString="true"/>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vLinkCode: ${vLinkCode}"/> 
+				</core:if>
+				<core:if test="${vLinkCode == vCustLinkCode}">
+					<gel:set select="$vLinksInstance/links" value="${vcustomLink}" insert="true"/>
+				</core:if>
+			</gel:forEach>
+		</core:forEach>
+		<core:if test="${vFoundLink ==1}">
+			<gel:set select="$vMasterInstance/object" value="${vLinksInstance}" insert="true"/>
+		</core:if>
+		
+		<!-- displayMappings Section-->
+		<gel:parse var="vDMappingInstance">
+			<displayMappings/>
+		</gel:parse>
+		<core:set var="vFoundMapping" value="0"/>
+		<!-- Identify custom displayMappings to look for -->
+		<sql:query escapeText="false" var="vCustomMappings">
+			select om.attribute
+			from odf_display_mappings OM 
+			where target_type = 'object' and object='${vObjectCode}' and upper(attribute) like upper('${vProjectInitials}%')
+		</sql:query>
+		<core:forEach items="${vCustomMappings.rowsByIndex}" var="row">
+			<core:set var="vFoundMapping" value="1"/>
+			<core:set var="vCustDMapCode">${row[0]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vCustDMapCode   : ${vCustDMapCode}"/> 
+			</core:if>
+
+			<gel:forEach select="$vCorrectSubObject/displayMappings/displayMapping" var="vcustomDMapping">
+				<gel:set var="vDMapCode" select="$vcustomDMapping/@attributeCode" asString="true"/>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vDMapCode: ${vDMapCode}"/> 
+				</core:if>
+				<core:if test="${vDMapCode == vCustDMapCode}">
+					<gel:set select="$vDMappingInstance/displayMappings" value="${vcustomDMapping}" insert="true"/>
+				</core:if>
+			</gel:forEach>
+		</core:forEach>
+		<core:if test="${vFoundMapping ==1}">
+			<gel:set select="$vMasterInstance/object" value="${vDMappingInstance}" insert="true"/>
+		</core:if>
+		
+		<!-- AutoNumbering Section-->
+		<gel:parse var="vAutoNumbering">
+			<autonumbering/>
+		</gel:parse>
+		<core:set var="vFoundAutonum" value="0"/>
+		<!-- Identify custom displayMappings to look for -->
+		<sql:query escapeText="false" var="vCustomAutonumberings">
+			select oan.attribute_code
+			from odf_attribute_autonumbering oan 
+			where object_code='${vObjectCode}' and upper(attribute_code) like upper('${vProjectInitials}%')
+		</sql:query>
+		<core:forEach items="${vCustomAutonumberings.rowsByIndex}" var="row">
+			<core:set var="vFoundAutonum" value="1"/>
+			<core:set var="vCustAutoCode">${row[0]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vCustAutoCode   : ${vCustAutoCode}"/> 
+			</core:if>
+
+			<gel:forEach select="$vCorrectSubObject/autonumbering/attributeAutonumbering" var="vcustomAutonum">
+				<gel:set var="vAutoCode" select="$vcustomAutonum/@code" asString="true"/>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vAutoCode: ${vAutoCode}"/> 
+				</core:if>
+				<core:if test="${vAutoCode == vCustAutoCode}">
+					<gel:set select="$vAutoNumbering/autonumbering" value="${vcustomAutonum}" insert="true"/>
+				</core:if>
+			</gel:forEach>
+		</core:forEach>
+		<core:if test="${vFoundAutonum ==1}">
+			<gel:set select="$vMasterInstance/object" value="${vAutoNumbering}" insert="true"/>
+		</core:if>
+		
+		<gel:set select="$v_xml_new/NikuDataBus/contentPack/objects" value="${vMasterInstance}" insert="true"/>
+			
+		<!--Genereting Final OUTPUT -->
+		<gel:serialize var="${v_xml_new}" fileName="${vPackagingPath}/06B-StockSubObject_${vObjectCode}.xml"/>
+		<core:if test="${DebugLevel &gt; 0}">
+			<gel:log level="debug" message="Final Output File: ${vPackagingPath}\06B-StockSubObject_${vObjectCode}.xml"/> 
+		</core:if>
+	</core:forEach>
+
+</gel:script>
