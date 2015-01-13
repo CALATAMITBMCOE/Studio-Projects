@@ -27,6 +27,20 @@
 
     <gel:setDataSource dbId="Niku"/>
 
+	<sql:query escapeText="false" var="vProject">
+		select INITIALS, CODE, PARTITION_CODE, NAME, PROJECT_CODE
+		from odf_ca_stproj_project
+		Where id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vProject.rowsByIndex}" var="row">
+		<core:set var="vProjectInitials">${row[0]}</core:set>
+		<core:set var="vProjectCode">${row[1]}</core:set>
+		<core:set var="vStudio_Part">${row[2]}</core:set>
+		<core:set var="vStudioProjectName">${row[3]}</core:set>
+		<core:set var="vProjectCodeName">${row[4]}</core:set>
+	</core:forEach>
+	
+	
 	<core:invokeStatic var="config" className="com.niku.union.config.ConfigurationManager" method="getInstance"/>
 	<core:set var="vInstallDirInput" value="${config.getProperties().getDirectories().getInstallDir()}"/>
 	<core:if test="${DebugLevel &gt; 1}">
@@ -47,6 +61,11 @@
 	</core:if>
 	
 	<core:set var="XOGlogFolder" value="${vInstallDir}/logs"/>
+	<core:set var="publishdir">${vInstallDir}/webroot/StudioPackages/${vProjectCodeName}</core:set>
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="publishdir: ${publishdir}"/> 
+	</core:if>
+
 	<core:set var="schedulerUrl" value="${config.getProperties().getWebServer().getSchedulerUrl()}"/>
 	
 	<core:if test="${DebugLevel &gt; 1}">
@@ -76,19 +95,6 @@
 		<gel:log level="debug" message="XOGlogFolder: ${XOGlogFolder}"/> 
 	</core:if>
 		
-	
-	<sql:query escapeText="false" var="vProject">
-		select INITIALS, CODE, PARTITION_CODE, NAME
-		from odf_ca_stproj_project
-		Where id = ${vStudioProjectID}
-	</sql:query>
-	<core:forEach items="${vProject.rowsByIndex}" var="row">
-		<core:set var="vProjectInitials">${row[0]}</core:set>
-		<core:set var="vProjectCode">${row[1]}</core:set>
-		<core:set var="vStudio_Part">${row[2]}</core:set>
-		<core:set var="vStudioProjectName">${row[3]}</core:set>
-	</core:forEach>
-	
     <!-- Log in to XOG-->
     <soap:invoke endpoint="${XOGURL}/niku/xog" var="auth">
         <soap:message>
@@ -109,14 +115,13 @@
     <core:choose>
         <!-- Check XOG sessionID -->
         <core:when test="${sessionID == null}">
-            <gel:out>[XOG]Couldn't Log in to XOG. Verify the username/password.</gel:out>
             <gel:log category="XOG" level="ERROR">Couldn't Log in to XOG. Please verify the username/password.</gel:log>
         </core:when>
         <core:otherwise>
             <!-- XOG if session ID is valid -->
             <!-- Login successful - BEGIN GEL LOGIC  -->
-            <gel:out>[XOG] XOG Login Successful. ${sessionID}.</gel:out>
 
+			<!--
 			<sql:query escapeText="false" var="vElements">
 				select element_id from ODF_CA_STPROJ_ELEMENT
 				Where odf_parent_id = ${vStudioProjectID}
@@ -129,7 +134,7 @@
 				</core:if>
 				
 			</core:forEach>		
-
+			-->
 			<sql:update>
 				delete from ODF_CA_STPROJ_ELEM_XLAT
 				Where odf_parent_id = ${vStudioProjectID}
@@ -160,9 +165,16 @@
                 </soap:message>
             </soap:invoke>
 			<core:if test="${DebugLevel &gt; 0}">
-				<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_${vStudioProjectID}.xml"/>
+				<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_BKP_${vStudioProjectID}.xml"/>
 			</core:if>
 
+			<gel:parse var="v_xml_root">
+				<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
+					<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="13"/>
+					<customObjectInstances objectCode="stproj_elem_xlat"/>
+				</NikuDataBus>
+			</gel:parse>
+			
 			<!-- Finding Elements and Languages to be translated -->
 			<sql:query escapeText="false" var="vElements">
 				select MVL.value, SE.ELEMENT_ID, SE.ELEMENT_TYPE, SE.NAME, SE.MASTER_OBJECT from ODF_MULTI_VALUED_LOOKUPS MVL, ODF_CA_STPROJ_ELEMENT SE
@@ -187,7 +199,7 @@
 				<core:switch on="${vElementType}">
 					<core:case value="Process">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<sql:query escapeText="false" var="vCaptions">
@@ -282,13 +294,13 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
 					<core:case value="Query">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<sql:query escapeText="false" var="vCaptions">
@@ -342,13 +354,13 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
 					<core:case value="MasterObject">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<!-- MasterObject Labels -->
@@ -359,7 +371,7 @@
 						UNION              
 							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
 							from CMN_CAPTIONS_NLS CAP inner join ODF_CUSTOM_ATTRIBUTES O on o.id = cap.pk_id and cap.table_name = 'ODF_CUSTOM_ATTRIBUTES' and cap.language_code = '${vLanguageCode}'
-							where o.object_name = '${vElementID}' and o.INTERNAL_NAME not in ('partition_code', 'name', 'code', 'page_layout')
+							where o.object_name = '${vElementID}' and o.INTERNAL_NAME not in ('partition_code', 'name', 'code', 'page_layout', 'created_date','created_by','updated_by','last_updated_date', 'odf_obs_unit_id_list', 'odf_entity_code', 'odf_period_type', 'odf_period_start', 'odf_period_end', 'odf_parent_id', 'odf_cncrt_parent_id')
 						UNION              
 							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
 							from CMN_CAPTIONS_NLS CAP inner join CMN_GRIDS G on G.id = cap.pk_id and cap.table_name = 'CMN_GRIDS' and cap.language_code = '${vLanguageCode}'
@@ -376,7 +388,11 @@
 							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
 							from CMN_CAPTIONS_NLS CAP inner join ODF_VIEW_ATTRIBUTES O on o.label_pk_id = cap.pk_id and cap.table_name in ('ODF_VIEW_ATTRIBUTES','ODF_VIEW_ATTRIBUTES_DESC','ODF_VIEW_ATTRIBUTES_INSTR','ODF_VIEW_ATTRIBUTES_TIP') and cap.language_code = '${vLanguageCode}' 
                                         inner join ODF_VIEWS V on V.object_code = '${vElementID}' and o.view_id = V.ID
-							where O.attribute_code not in ('partition_code', 'name', 'code', 'page_layout', 'created_date','created_by','updated_by','last_updated_date', 'odf_obs_unit_id_list')
+							where O.attribute_code not in ('partition_code', 'name', 'code', 'page_layout', 'created_date','created_by','updated_by','last_updated_date', 'odf_obs_unit_id_list', 'odf_entity_code', 'odf_period_type', 'odf_period_start', 'odf_period_end', 'odf_parent_id', 'odf_cncrt_parent_id')
+						UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_ACTIONS A on A.id = cap.pk_id and cap.table_name = 'ODF_ACTIONS' and cap.language_code = '${vLanguageCode}'
+							where A.object_code = '${vElementID}'						
 						</sql:query>
 						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
 							<core:set var="vCaptionID">${row[0]}</core:set>
@@ -422,7 +438,7 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						<core:if test="${DebugLevel &gt; 0}">
 							<gel:log level="debug" message="Processing: ${vElementType}-SubObjects"/> 
@@ -437,7 +453,7 @@
 							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
 							from CMN_CAPTIONS_NLS CAP inner join odf_custom_attributes OCA on OCA.id = cap.pk_id and cap.table_name = 'ODF_CUSTOM_ATTRIBUTES' and CAP.language_code = '${vLanguageCode}' 
                                         inner join odf_objects O on oca.object_name = o.code and o.parent_object_code = '${vElementID}'
-							where OCA.INTERNAL_NAME not in ('partition_code', 'name', 'code', 'page_layout')
+							where OCA.INTERNAL_NAME not in ('partition_code', 'name', 'code', 'page_layout', 'created_date','created_by','updated_by','last_updated_date', 'odf_obs_unit_id_list', 'odf_entity_code', 'odf_period_type', 'odf_period_start', 'odf_period_end', 'odf_parent_id', 'odf_cncrt_parent_id')
 						UNION
 							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
 							from CMN_CAPTIONS_NLS CAP inner join CMN_GRIDS G on G.id = cap.pk_id and cap.table_name = 'CMN_GRIDS' and CAP.language_code = '${vLanguageCode}' 
@@ -457,7 +473,12 @@
 							from CMN_CAPTIONS_NLS CAP inner join ODF_VIEW_ATTRIBUTES OA on OA.label_pk_id = cap.pk_id and cap.table_name in ('ODF_VIEW_ATTRIBUTES','ODF_VIEW_ATTRIBUTES_DESC','ODF_VIEW_ATTRIBUTES_INSTR','ODF_VIEW_ATTRIBUTES_TIP') and CAP.language_code = '${vLanguageCode}' 
                                         inner join ODF_VIEWS OV on OA.VIEW_ID = OV.ID
                                         inner join odf_objects O on ov.object_code = O.CODE AND O.PARENT_OBJECT_CODE = '${vElementID}'
-							where OA.attribute_code not in ('partition_code', 'name', 'code', 'page_layout', 'created_date','created_by','updated_by','last_updated_date', 'odf_obs_unit_id_list')
+							where OA.attribute_code not in ('partition_code', 'name', 'code', 'page_layout', 'created_date','created_by','updated_by','last_updated_date', 'odf_obs_unit_id_list', 'odf_entity_code', 'odf_period_type', 'odf_period_start', 'odf_period_end', 'odf_parent_id', 'odf_cncrt_parent_id')
+						UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_ACTIONS A on A.id = cap.pk_id and cap.table_name = 'ODF_ACTIONS' and cap.language_code = '${vLanguageCode}'
+										inner join odf_objects O on O.code = A.object_code
+							where O.parent_object_code = '${vElementID}'
 						</sql:query>
 						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
 							<core:set var="vCaptionID">${row[0]}</core:set>
@@ -503,13 +524,13 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
 					<core:case value="SubObject">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<!-- Subobject Labels -->
@@ -520,7 +541,7 @@
 						UNION              
 							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
 							from CMN_CAPTIONS_NLS CAP inner join ODF_CUSTOM_ATTRIBUTES O on o.id = cap.pk_id and cap.table_name = 'ODF_CUSTOM_ATTRIBUTES' and cap.language_code = '${vLanguageCode}'
-							where o.object_name = '${vElementID}' and o.INTERNAL_NAME not in ('partition_code', 'name', 'code', 'page_layout')
+							where o.object_name = '${vElementID}' and o.INTERNAL_NAME not in ('partition_code', 'name', 'code', 'page_layout', 'created_date','created_by','updated_by','last_updated_date', 'odf_obs_unit_id_list', 'odf_entity_code', 'odf_period_type', 'odf_period_start', 'odf_period_end', 'odf_parent_id', 'odf_cncrt_parent_id')
 						UNION              
 							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
 							from CMN_CAPTIONS_NLS CAP inner join CMN_GRIDS G on G.id = cap.pk_id and cap.table_name = 'CMN_GRIDS' and cap.language_code = '${vLanguageCode}'
@@ -537,7 +558,11 @@
 							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
 							from CMN_CAPTIONS_NLS CAP inner join ODF_VIEW_ATTRIBUTES O on o.label_pk_id = cap.pk_id and cap.table_name in ('ODF_VIEW_ATTRIBUTES','ODF_VIEW_ATTRIBUTES_DESC','ODF_VIEW_ATTRIBUTES_INSTR','ODF_VIEW_ATTRIBUTES_TIP') and cap.language_code = '${vLanguageCode}' 
                                         inner join ODF_VIEWS V on V.object_code = '${vElementID}' and o.view_id = V.ID
-							where O.attribute_code not in ('partition_code', 'name', 'code', 'page_layout', 'created_date','created_by','updated_by','last_updated_date', 'odf_obs_unit_id_list')
+							where O.attribute_code not in ('partition_code', 'name', 'code', 'page_layout', 'created_date','created_by','updated_by','last_updated_date', 'odf_obs_unit_id_list', 'odf_entity_code', 'odf_period_type', 'odf_period_start', 'odf_period_end', 'odf_parent_id', 'odf_cncrt_parent_id')
+						UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP inner join ODF_ACTIONS A on A.id = cap.pk_id and cap.table_name = 'ODF_ACTIONS' and cap.language_code = '${vLanguageCode}'
+							where A.object_code = '${vElementID}'						
 						</sql:query>
 						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
 							<core:set var="vCaptionID">${row[0]}</core:set>
@@ -583,13 +608,13 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
 					<core:case value="StockObjectCustAttr">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<sql:query escapeText="false" var="vCaptions">
@@ -615,10 +640,7 @@
 							
 							<core:set var="vCaptionInstanceCode" value="${vCaptionID}"/>
 							<gel:parse var="vCaptionInstance">
-								<instance
-									instanceCode="${vCaptionInstanceCode}"
-									objectCode="stproj_elem_xlat"
-									parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+								<instance instanceCode="${vCaptionInstanceCode}" objectCode="stproj_elem_xlat" parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
 									<CustomInformation>
 										<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
 										<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
@@ -642,22 +664,32 @@
 								</instance>
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
-							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+							<gel:set insert="true" select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
 					<core:case value="Page">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<sql:query escapeText="false" var="vCaptions">
-							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
-							from CMN_CAPTIONS_NLS 
-							where language_code = '${vLanguageCode}' and 
-                            (table_name = 'CMN_PAGES'
-                             and pk_id in (select id from CMN_PAGES where page_code = '${vElementID}'))
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP 
+								INNER JOIN CMN_PAGES F on F.ID = CAP.pk_id and CAP.language_code = '${vLanguageCode}' and cap.table_name = 'CMN_PAGES'
+							where F.page_code = '${vElementID}'
+							UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP 
+								INNER JOIN CMN_PAGES T on T.ID = CAP.pk_id and CAP.language_code = '${vLanguageCode}' and cap.table_name = 'CMN_PAGES'
+								INNER JOIN CMN_PAGES F on F.ID = T.parent_page_id
+							where F.page_code = '${vElementID}'
+							UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP 
+								INNER JOIN CMN_MENU_ITEMS M on M.ID = CAP.pk_id and CAP.language_code = '${vLanguageCode}' and cap.table_name = 'CMN_MENU_ITEMS'
+								INNER JOIN CMN_PAGES F on F.ID = M.CONTAINER_ID and M.CONTAINER_TYPE_CODE = 'PANE'
+							where F.page_code = '${vElementID}'
 						</sql:query>
 						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
 							<core:set var="vCaptionID">${row[0]}</core:set>
@@ -703,30 +735,53 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
 					<core:case value="Portlet">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<sql:query escapeText="false" var="vCaptions">
-							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
-							from CMN_CAPTIONS_NLS 
-							where language_code = '${vLanguageCode}' and 
-                            ((table_name = 'CMN_PORTLETS'
-                             and pk_id in (select P.ID from cmn_portlets P where P.portlet_code = '${vElementID}'))
-                             OR (table_name = 'CMN_GRID_COLS'
-                             and pk_id in (select GC.ID from cmn_portlets P, CMN_GRIDS G, CMN_GRID_COLS GC 
-										   where P.portlet_code = '${vElementID}' and P.ID = G.PORTLET_ID AND GC.GRID_ID = G.ID))
-                             OR (table_name = 'CMN_GRAPH_AXES'
-                             and pk_id in (select GA.ID from cmn_portlets P, CMN_GRAPHS G, CMN_GRAPH_AXES GA 
-                                           where P.portlet_code = '${vElementID}' and P.ID = G.PORTLET_ID AND GA.GRAPH_ID = G.ID))
-                             OR (table_name = 'CMN_GG_ITEMS'
-                             and pk_id in (select GG.ID from cmn_portlets P, CMN_GRAPHS G, CMN_GG_ITEMS GG 
-                                           where P.portlet_code = '${vElementID}' and P.ID = G.PORTLET_ID AND GG.GG_ID = G.ID)))
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP
+								INNER JOIN CMN_PORTLETS P on CAP.TABLE_NAME = 'CMN_PORTLETS' and CAP.language_code = '${vLanguageCode}' and CAP.PK_ID = P.ID
+							where P.PORTLET_CODE in('strat_hierarchy_kpis','strat_hiev_kpi_org','strat_kpi_measurements')
+							UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP
+								INNER JOIN CMN_GRID_COLS GC on CAP.TABLE_NAME = 'CMN_GRID_COLS' and CAP.language_code = '${vLanguageCode}' and CAP.PK_ID = GC.ID
+								INNER JOIN CMN_GRIDS G on G.ID = GC.GRID_ID
+								INNER JOIN CMN_PORTLETS P on P.ID = G.PORTLET_ID
+							where P.PORTLET_CODE = '${vElementID}'
+							UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP
+								INNER JOIN CMN_GRAPH_AXES GA on CAP.TABLE_NAME = 'CMN_GRAPH_AXES' and CAP.language_code = '${vLanguageCode}' and CAP.PK_ID = GA.ID
+								INNER JOIN CMN_GRAPHS G on G.ID = GA.GRAPH_ID
+								INNER JOIN CMN_PORTLETS P on P.ID = G.PORTLET_ID
+							where P.PORTLET_CODE = '${vElementID}'
+							UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP
+								INNER JOIN CMN_GG_ITEMS GG on CAP.TABLE_NAME = 'CMN_GG_ITEMS' and CAP.language_code = '${vLanguageCode}' and CAP.PK_ID = GG.ID
+								INNER JOIN CMN_GRAPHS G on G.ID = GG.GG_ID
+								INNER JOIN CMN_PORTLETS P on P.ID = G.PORTLET_ID
+							where P.PORTLET_CODE = '${vElementID}'             
+							UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP
+								INNER JOIN CMN_SERVICES S on CAP.TABLE_NAME = 'CMN_SERVICES' and CAP.language_code = '${vLanguageCode}' and CAP.PK_ID = S.ID
+								INNER JOIN CMN_PORTLETS P on S.SERVICE_CODE = 'htmlPortlet'||P.ID
+							WHERE P.PORTLET_CODE = '${vElementID}'             
+							UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP
+								INNER JOIN CMN_PORTLET_SERVICES S on CAP.TABLE_NAME = 'CMN_PORTLET_SERVICES' and CAP.language_code = '${vLanguageCode}' and CAP.PK_ID = S.ID
+								INNER JOIN CMN_PORTLETS P on S.PORTLET_ID = P.ID
+							WHERE P.PORTLET_CODE = '${vElementID}'             
 						</sql:query>
 						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
 							<core:set var="vCaptionID">${row[0]}</core:set>
@@ -772,13 +827,13 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
 					<core:case value="Group">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<sql:query escapeText="false" var="vCaptions">
@@ -832,23 +887,26 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
 					<core:case value="Menu">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<sql:query escapeText="false" var="vCaptions">
-							select ID, TABLE_NAME, PK_ID, NAME, DESCRIPTION 
-							from CMN_CAPTIONS_NLS 
-							where language_code = '${vLanguageCode}' and 
-                            ((table_name = 'CMN_ACTIONS'
-                             and pk_id in (select A.id from CMN_ACTIONS A where A.ACTION_CODE = '${vElementID}' ))
-                             OR (table_name = 'CMN_MENU_ITEMS'
-                             and pk_id in (select I.id from CMN_ACTIONS A, CMN_MENU_ITEMS I where A.ACTION_CODE = '${vElementID}' AND A.ID = I.ACTION_ID)))
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP
+								INNER JOIN CMN_ACTIONS A on A.ID = CAP.PK_ID and CAP.table_name = 'CMN_ACTIONS' and CAP.language_code = '${vLanguageCode}'
+							where A.ACTION_CODE = '${vElementID}'
+							UNION
+							select CAP.ID, CAP.TABLE_NAME, CAP.PK_ID, CAP.NAME, CAP.DESCRIPTION 
+							from CMN_CAPTIONS_NLS CAP
+								INNER JOIN CMN_MENU_ITEMS M on M.ID = CAP.PK_ID and CAP.table_name = 'CMN_MENU_ITEMS' and CAP.language_code = '${vLanguageCode}'
+								INNER JOIN CMN_ACTIONS A on A.ID = M.ACTION_ID 
+							where A.ACTION_CODE = '${vElementID}'
 						</sql:query>
 						<core:forEach items="${vCaptions.rowsByIndex}" var="row">
 							<core:set var="vCaptionID">${row[0]}</core:set>
@@ -894,13 +952,13 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
 					<core:case value="StaticLookup">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<sql:query escapeText="false" var="vCaptions">
@@ -956,13 +1014,13 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
 					<core:case value="DynamicLookup">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<sql:query escapeText="false" var="vCaptions">
@@ -1018,13 +1076,13 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
 					<core:case value="Report">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<sql:query escapeText="false" var="vCaptions">
@@ -1078,13 +1136,13 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
 					<core:case value="Job">
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}."/> 
+							<gel:log level="debug" message="Processing: ${vElementType}-${vElementID}-${vLanguageCode}."/> 
 						</core:if>
 
 						<sql:query escapeText="false" var="vCaptions">
@@ -1138,7 +1196,7 @@
 							</gel:parse>
 							<!-- Adding the new elements to the project -->
 							<gel:set insert="true"
-								select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vCaptionInstance}"/>
+								select="$v_xml_root/NikuDataBus/customObjectInstances" value="${vCaptionInstance}"/>
 						</core:forEach>
 						
 					</core:case>
@@ -1151,7 +1209,7 @@
 
 			</core:forEach>
 			<core:if test="${DebugLevel &gt; 0}">
-				<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGROOT_${vStudioProjectID}.xml"/>
+				<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGROOT_XLAT_${vStudioProjectID}.xml"/>
 			</core:if>
 
 			<!-- Calling XOG-->
@@ -1165,7 +1223,7 @@
 								</xog:Auth>
 							</soapenv:Header>
 							<soapenv:Body>
-								<gel:include select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus"/>
+								<gel:include select="$v_xml_root/NikuDataBus"/>
 							</soapenv:Body>
 						</soapenv:Envelope>
 					</soap:message>
@@ -1173,29 +1231,18 @@
 			</core:catch>
             <core:choose>
                 <core:when test="${v_xog_exception != null}">
-                    <gel:out>[XOG]XOG operation failed: ${v_xog_exception}</gel:out>
                     <gel:log category="XOG" level="ERROR">XOG operation failed: ${v_xog_exception}</gel:log>
                 </core:when>
-                <core:otherwise>
-                    <gel:set
-                        select="$runresult/soapenv:Envelope/soapenv:Body/XOGOutput" var="writeOutputRoot"/>
-                    <gel:set asString="true"
-                        select="$writeOutputRoot/Status/@state" var="XOGoutcome"/>
-                    <gel:set asString="true"
-                        select="$writeOutputRoot/Records/Record" var="XOGoutputrecords"/>
-                    <gel:set asString="true"
-                        select="$writeOutputRoot/Statistics/@totalNumberOfRecords" var="XOGtotalrecords"/>
-                    <gel:set asString="true"
-                        select="$writeOutputRoot/Statistics/@insertedRecords" var="XOGinsertedrecords"/>
-                    <gel:set asString="true"
-                        select="$writeOutputRoot/Statistics/@updatedRecords" var="XOGupdatedrecords"/>
-                    <gel:set asString="true"
-                        select="$writeOutputRoot/Statistics/@failureRecords" var="XOGfailurerecords"/>
-                    <!-- Check the XOG result -->
-                    <gel:out>[XOG]Document import for ${vStudioProjectID}</gel:out>
-                    <gel:out>[XOG]Status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:out>
-                    <gel:log category="XOG" level="INFO">[XOGDocument import for ${v_xog_resourceid} status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:log>
-                </core:otherwise>
+				<core:otherwise>
+					<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/XOGOutput" var="writeOutputRoot"/>
+					<gel:set asString="true" select="$writeOutputRoot/Status/@state" var="XOGoutcome"/>
+					<gel:set asString="true" select="$writeOutputRoot/Statistics/@totalNumberOfRecords" var="XOGtotalrecords"/>
+					<gel:set asString="true" select="$writeOutputRoot/Statistics/@insertedRecords" var="XOGinsertedrecords"/>
+					<gel:set asString="true" select="$writeOutputRoot/Statistics/@updatedRecords" var="XOGupdatedrecords"/>
+					<gel:set asString="true" select="$writeOutputRoot/Statistics/@failureRecords" var="XOGfailurerecords"/>
+					<!-- Check the XOG result -->
+					<gel:log category="XOG" level="INFO">[XOGDocument import for ${vStudioProjectID} status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:log>
+				</core:otherwise>
             </core:choose>
 			<core:if test="${DebugLevel &gt; 0}">
 				<gel:serialize var="${runresult}" fileName="${XOGlogFolder}/XOGResult_${vStudioProjectID}.xml"/>
@@ -1218,18 +1265,36 @@
 			
 			<!-- Preparing OUTPUT Excel File -->
 			<sql:query escapeText="false" var="vProject">
-				select XLAT_SPREADSHEET 
+				select XLAT_SPREADSHEET, PUBLISH, OUT_FOLDER_PATH
 				from odf_ca_stproj_project
 				Where id = ${vStudioProjectID}
 			</sql:query>
 			<core:forEach items="${vProject.rowsByIndex}" var="row">
 				<core:set var="vSpreadsheet">${row[0]}</core:set>
+				<core:set var="vPublish">${row[1]}</core:set>
+				<core:set var="vFolder">${row[2]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vSpreadsheet    : ${vSpreadsheet}"/> 
+					<gel:log level="debug" message="vSpreadsheet-Publish: ${vSpreadsheet}-${vPublish}"/> 
 				</core:if>
 			</core:forEach>
 
-			<core:set var="vFileName">${vSpreadsheet}</core:set>
+			<core:set var="vSpreadsheetPublish">${vFolder}/${vSpreadsheet}</core:set>		
+			<core:if test="${vPublish == 1}">
+				<!-- Create the Publish Folder -->
+				<core:set var="dir_to_create">${publishdir}</core:set>
+				<util:file name="${dir_to_create}" var="foldervar" />
+				<core:set var="CreateDirDone" value="${foldervar.mkdirs()}" />
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="CreateDirDone : ${CreateDirDone}"/>
+				</core:if>				
+				<!-- Change Spreadsheet Name -->
+				<core:set var="vSpreadsheetPublish">${publishdir}/${vSpreadsheet}</core:set>		
+			</core:if>
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:log level="debug" message="vSpreadsheet Final Name and path: ${vSpreadsheetPublish}"/> 
+			</core:if>
+	
+			<core:set var="vFileName">${vSpreadsheetPublish}</core:set>
 			<core:if test="${DebugLevel &gt; 0}">
 				<gel:log level="debug" message="Creating File: ${vFileName}"/> 
 			</core:if>
@@ -1293,7 +1358,16 @@
 			<core:invoke method="flush" on="${vSheetOSW}" var="vOut"/>
 			<core:invoke method="close" on="${vData}" var="vOut"/>		
 			<core:invoke method="close" on="${vSheetOSW}" var="vOut"/>		
-			<core:invoke method="close" on="${vSheet}" var="vOut"/>		
+			<core:invoke method="close" on="${vSheet}" var="vOut"/>
+
+			<core:if test="${vPublish == 1}">
+				<core:set var="vSpreadsheetURL" value="/niku/StudioPackages/${vProjectCodeName}/${vSpreadsheet}"/>
+				<sql:update>
+					UPDATE ODF_CA_STPROJ_PROJECT SET xlat_url='${vSpreadsheetURL}'
+					Where id = ${vStudioProjectID}
+				</sql:update>
+			</core:if>
+			
 		</core:otherwise>
     </core:choose>		
 </gel:script>

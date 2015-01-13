@@ -53,14 +53,12 @@
 			<util:properties escapeText="false" file="${vFileName}" />
 			<core:if test="${DebugLevel &gt; 0}">
 				<gel:log level="debug" message="Loaded: ${vFileName}"/> 
-				<gel:out>Loaded: ${vFileName}</gel:out>
 			</core:if>
 		</util:available>
 	</core:if>
 
 	<core:if test="${DebugLevel &gt; 0}">
 		<gel:log level="debug" message="Building ZIP file: ${zip_file_name}"/> 
-		<gel:out>Building ZIP file: ${zip_file_name}</gel:out>
 	</core:if>
 
 	<core:new className="java.io.FileOutputStream" var="fos" >
@@ -73,14 +71,12 @@
 
 	<core:forEach items="${zip_file_list}" var="thisFile">
 
-		<gel:out>Fiz core new: ${zip_file_name}</gel:out>
 		<util:file name="${thisFile}" var="filesize" />
 	
 		<core:set var="filesize" value="${filesize.length()}" />
 
 		<core:if test="${DebugLevel &gt; 0}">
 			<gel:log level="debug" message="Processing file: ${thisFile} (${filesize})"/> 
-			<gel:out>Processing file: ${thisFile} (${filesize})</gel:out>
 		</core:if>
 
 		<core:new className="java.io.ByteArrayOutputStream" var="byteArrayOutputStream">
@@ -118,7 +114,6 @@
 
 	<core:if test="${err != null}">
 		<gel:log level="ERROR" message="EXCEPTION: ${err.getMessage()}"/> 
-		<gel:out>EXCEPTION: ${err.getMessage()}</gel:out>
 	</core:if>
 
 	<core:if test="${err == null}">

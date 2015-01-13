@@ -34,7 +34,8 @@
 	<core:forEach items="${vProject.rowsByIndex}" var="row">
 		<core:set var="vProjectCode">${row[0]}</core:set>
 		<core:set var="vPackagingPath">${row[1]}</core:set>
-		<core:set var="vOutputPath">${row[2]}</core:set>
+		<core:set var="vInputPath">${row[2]}</core:set>
+		<core:set var="vOutputPath" value="${vInputPath}/output"/>
 		<core:set var="vXOGHome">${row[3]}</core:set>
 		<core:set var="vServername">${row[4]}</core:set>
 		<core:set var="vXOGUser">${row[5]}</core:set>
@@ -45,6 +46,7 @@
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:log level="debug" message="vProjectCode  : ${vProjectCode}"/> 
 			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
+			<gel:log level="debug" message="vInputPath   : ${vInputPath}"/> 
 			<gel:log level="debug" message="vOutputPath   : ${vOutputPath}"/> 
 			<gel:log level="debug" message="vXOGHome      : ${vXOGHome}"/> 
 			<gel:log level="debug" message="vServername   : ${vServername}"/> 
@@ -90,7 +92,11 @@
 		<file:line>
 			<file:column value="${vLine}"/>
 		</file:line>
-		<core:set var="vLine">IF NOT EXIST ${vOutputPath} md ${vOutputPath}</core:set>
+		<core:set var="vLine">CD ${vInputPath}</core:set>
+		<file:line>
+			<file:column value="${vLine}"/>
+		</file:line>
+		<core:set var="vLine">IF NOT EXIST output md output</core:set>
 		<file:line>
 			<file:column value="${vLine}"/>
 		</file:line>
@@ -105,7 +111,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/01-StaticLookup_out.xml -input ${vPackagingPath}/01-StaticLookup.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/01-StaticLookup_out.xml -input ${vInputPath}/01-StaticLookup.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -124,7 +130,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/02-Objects_${vObjCode}_out.xml -input ${vPackagingPath}/02-Objects_${vObjCode}.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/02-Objects_${vObjCode}_out.xml -input ${vInputPath}/02-Objects_${vObjCode}.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -143,7 +149,7 @@
 				<gel:log level="debug" message="vTest  : ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/03-SubObjects_${vMaster}_out.xml -input ${vPackagingPath}/03-SubObjects_${vMaster}.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/03-SubObjects_${vMaster}_out.xml -input ${vInputPath}/03-SubObjects_${vMaster}.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -160,7 +166,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/04-DynamicLookup_out.xml -input ${vPackagingPath}/04-DynamicLookup.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/04-DynamicLookup_out.xml -input ${vInputPath}/04-DynamicLookup.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -177,7 +183,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/05-Views_out.xml -input ${vPackagingPath}/05-Views.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/05-Views_out.xml -input ${vInputPath}/05-Views.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -195,7 +201,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06A-StockObject_${vMaster}_out.xml -input ${vPackagingPath}/06A-StockObject_${vMaster}.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06A-StockObject_${vMaster}_out.xml -input ${vInputPath}/06A-StockObject_${vMaster}.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -225,7 +231,7 @@
 				</file:line>
 				<!-- END Temporary FIX For v13.3 -->
 			
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06B-StockSubObject_${vMaster}_out.xml -input ${vPackagingPath}/06B-StockSubObject_${vMaster}.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06B-StockSubObject_${vMaster}_out.xml -input ${vInputPath}/06B-StockSubObject_${vMaster}.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -255,7 +261,7 @@
 			</file:line>
 			<!-- END Temporary FIX For v13.3 -->
 
-			<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06C-StockObjectCustomAttributes_${vMaster}_out.xml -input ${vPackagingPath}/06C-StockObjectCustomAttributes_${vMaster}.xml</core:set>
+			<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06C-StockObjectCustomAttributes_${vMaster}_out.xml -input ${vInputPath}/06C-StockObjectCustomAttributes_${vMaster}.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -283,7 +289,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml -input ${vPackagingPath}/06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml -input ${vInputPath}/06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -312,7 +318,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml -input ${vPackagingPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml -input ${vInputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -341,7 +347,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml -input ${vPackagingPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml -input ${vInputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -358,7 +364,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/07-Processes_out.xml -input ${vPackagingPath}/07-Processes.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/07-Processes_out.xml -input ${vInputPath}/07-Processes.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -375,7 +381,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/08-Queries_out.xml -input ${vPackagingPath}/08-Queries.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/08-Queries_out.xml -input ${vInputPath}/08-Queries.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -392,7 +398,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/09-Portlets_out.xml -input ${vPackagingPath}/09-Portlets.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/09-Portlets_out.xml -input ${vInputPath}/09-Portlets.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -409,7 +415,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/10-Pages_out.xml -input ${vPackagingPath}/10-Pages.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/10-Pages_out.xml -input ${vInputPath}/10-Pages.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -427,7 +433,7 @@
 				<gel:log level="debug" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/11-Groups_${vGroupCode}_out.xml -input ${vPackagingPath}/11-Groups_${vGroupCode}.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/11-Groups_${vGroupCode}_out.xml -input ${vInputPath}/11-Groups_${vGroupCode}.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -456,7 +462,7 @@
 				</file:line>
 				<!-- END Temporary FIX For v13.3 -->
 				
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/12-Menu_out.xml -input ${vPackagingPath}/12-Menu.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/12-Menu_out.xml -input ${vInputPath}/12-Menu.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -477,7 +483,7 @@
 				<gel:log level="debug" message="vObject: ${vObject}  vOrder: ${vOrder}   vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/60-SeedData_${vObject}_${vOrder}_out.xml -input ${vPackagingPath}/60-SeedData_${vObject}_${vOrder}.xml</core:set>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/60-SeedData_${vObject}_${vOrder}_out.xml -input ${vInputPath}/60-SeedData_${vObject}_${vOrder}.xml</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -485,14 +491,14 @@
 		</core:forEach>
 		
 		<core:if test="${vInclude &gt; 0}">
-			<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/99-StudioProject_out.xml -input ${vPackagingPath}/99-StudioProject.xml</core:set>
+			<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/99-StudioProject_out.xml -input ${vInputPath}/99-StudioProject.xml</core:set>
 			<file:line>
 				<file:column value="${vLine}"/>
 			</file:line>
 		</core:if>
 
 		<core:if test="${vInclude == 0}">
-			<core:set var="vLine">rem Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/99-StudioProject_out.xml -input ${vPackagingPath}/99-StudioProject.xml</core:set>
+			<core:set var="vLine">rem Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/99-StudioProject_out.xml -input ${vInputPath}/99-StudioProject.xml</core:set>
 			<file:line>
 				<file:column value="${vLine}"/>
 			</file:line>

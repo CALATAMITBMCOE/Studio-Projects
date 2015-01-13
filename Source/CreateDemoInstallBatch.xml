@@ -35,7 +35,8 @@
 	<core:forEach items="${vProject.rowsByIndex}" var="row">
 		<core:set var="vProjectCode">${row[0]}</core:set>
 		<core:set var="vPackagingPath">${row[1]}</core:set>
-		<core:set var="vOutputPath">${row[2]}</core:set>
+		<core:set var="vInputPath">${row[2]}</core:set>
+		<core:set var="vOutputPath" value="${vInputPath}/output"/>
 		<core:set var="vXOGHome">${row[3]}</core:set>
 		<core:set var="vServername">${row[4]}</core:set>
 		<core:set var="vXOGUser">${row[5]}</core:set>
@@ -46,6 +47,7 @@
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:log level="debug" message="vProjectCode  : ${vProjectCode}"/> 
 			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
+			<gel:log level="debug" message="vInputPath   : ${vInputPath}"/> 
 			<gel:log level="debug" message="vOutputPath   : ${vOutputPath}"/> 
 			<gel:log level="debug" message="vXOGHome      : ${vXOGHome}"/> 
 			<gel:log level="debug" message="vServername   : ${vServername}"/> 
@@ -90,11 +92,15 @@
 			<file:line>
 				<file:column value="${vLine}"/>
 			</file:line>
-			<core:set var="vLine">IF NOT EXIST ${vOutputPath} md ${vOutputPath}</core:set>
+			<core:set var="vLine">CD ${vInputPath}</core:set>
 			<file:line>
 				<file:column value="${vLine}"/>
 			</file:line>
-
+			<core:set var="vLine">IF NOT EXIST output md output</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+			
 			<core:set var="vTest">0</core:set>
 			<sql:query var="vCount">
 				select data_object_type, object_order, count(*) from odf_ca_stproj_data where ODF_PARENT_ID = ${vStudioProjectID} and data_type = 'Demo'
@@ -109,7 +115,7 @@
 					<gel:log level="debug" message="vObject: ${vObject}  vOrder: ${vOrder}   vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
-					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/90-DemoData_${vObject}_${vOrder}_out.xml -input ${vPackagingPath}/90-DemoData_${vObject}_${vOrder}.xml</core:set>
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/90-DemoData_${vObject}_${vOrder}_out.xml -input ${vInputPath}/90-DemoData_${vObject}_${vOrder}.xml</core:set>
 					<file:line>
 						<file:column value="${vLine}"/>
 					</file:line>
