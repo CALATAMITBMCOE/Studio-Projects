@@ -51,7 +51,12 @@
 		<core:arg type="java.lang.String" value="${vInstallDirInput}" />
 	</core:new>
 
-	<core:invoke var="vInstallDir" on="${InputString}" method="replace">
+	<core:invoke var="vInputStringCorrect" on="${InputString}" method="replaceAll">
+		<core:arg type="java.lang.String" value="\\\\"/>
+		<core:arg type="java.lang.String" value="\\"/>
+	</core:invoke>
+
+	<core:invoke var="vInstallDir" on="${vInputStringCorrect}" method="replace">
 		<core:arg type="char" value="\"/>
 		<core:arg type="char" value="/"/>
 	</core:invoke>

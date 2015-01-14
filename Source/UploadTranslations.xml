@@ -16,29 +16,78 @@
 	<core:set var="vFound">0</core:set>
 	
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
+
+    <gel:setDataSource dbId="Niku"/>
+
+	<sql:query escapeText="false" var="vProject">
+		select INITIALS, CODE, PARTITION_CODE, NAME, PROJECT_CODE
+		from odf_ca_stproj_project
+		Where id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vProject.rowsByIndex}" var="row">
+		<core:set var="vProjectInitials">${row[0]}</core:set>
+		<core:set var="vProjectCode">${row[1]}</core:set>
+		<core:set var="vStudio_Part">${row[2]}</core:set>
+		<core:set var="vStudioProjectName">${row[3]}</core:set>
+		<core:set var="vProjectCodeName">${row[4]}</core:set>
+	</core:forEach>
 	
 	<core:if test="${DebugLevel &gt; 0}">
 		<gel:log level="debug" message="Start Script"/>
 		<gel:log level="debug" message="Studio Project: ${vStudioProjectID}"/> 
 	</core:if>
 
-    <gel:setDataSource dbId="Niku"/>
+	<core:invokeStatic var="config" className="com.niku.union.config.ConfigurationManager" method="getInstance"/>
+	<core:set var="vInstallDirInput" value="${config.getProperties().getDirectories().getInstallDir()}"/>
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="vInstallDirInput :  ${vInstallDirInput}"/>
+	</core:if>
+	
+	<core:new className="java.lang.String" var="InputString" >
+		<core:arg type="java.lang.String" value="${vInstallDirInput}" />
+	</core:new>
+
+	<core:invoke var="vInputStringCorrect" on="${InputString}" method="replaceAll">
+		<core:arg type="java.lang.String" value="\\\\"/>
+		<core:arg type="java.lang.String" value="\\"/>
+	</core:invoke>
+
+	<core:invoke var="vInstallDir" on="${vInputStringCorrect}" method="replace">
+		<core:arg type="char" value="\"/>
+		<core:arg type="char" value="/"/>
+	</core:invoke>
+	
+	<core:if test="${DebugLevel &gt; 1}">
+		<gel:log level="debug" message="vInstallDir :  ${vInstallDir}"/>
+	</core:if>
+	
+	<core:set var="XOGlogFolder" value="${vInstallDir}/logs"/>
+	<core:set var="publishdir">${vInstallDir}/webroot/StudioPackages/${vProjectCodeName}</core:set>
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="publishdir: ${publishdir}"/> 
+	</core:if>
 	
 	<sql:query escapeText="false" var="vProject">
-		select XLAT_SPREADSHEET 
+		select XLAT_SPREADSHEET, PUBLISH, OUT_FOLDER_PATH
 		from odf_ca_stproj_project
 		Where id = ${vStudioProjectID}
 	</sql:query>
 	<core:forEach items="${vProject.rowsByIndex}" var="row">
 		<core:set var="vSpreadsheet">${row[0]}</core:set>
-
+		<core:set var="vPublish">${row[1]}</core:set>
+		<core:set var="vFolder">${row[2]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vSpreadsheet: ${vSpreadsheet}"/>
+			<gel:log level="debug" message="vSpreadsheet-Publish: ${vSpreadsheet}-${vPublish}"/> 
+		</core:if>
+
+		<core:set var="vSpreadsheetPublish">${vFolder}/${vSpreadsheet}</core:set>		
+		<core:if test="${vPublish == 1}">
+			<core:set var="vSpreadsheetPublish">${publishdir}/${vSpreadsheet}</core:set>		
 		</core:if>
 		
 		<core:set var="regex">[,]</core:set>
 		<core:new className="java.io.FileInputStream" var="vSheet">
-			<core:arg type="java.lang.String" value="${vSpreadsheet}" />
+			<core:arg type="java.lang.String" value="${vSpreadsheetPublish}" />
 		</core:new>
 
 		<core:new className="java.io.InputStreamReader" var="vSheetISR">
