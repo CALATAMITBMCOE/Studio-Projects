@@ -992,7 +992,6 @@
 			<sql:query escapeText="false" var="vElements">
 				select PR.PROCESS_CODE, PV.ID, CAP.NAME FROM BPM_DEF_PROCESSES PR, BPM_DEF_PROCESS_VERSIONS PV, CMN_CAPTIONS_NLS CAP
 				WHERE UPPER(PR.PROCESS_CODE) like UPPER('${vProjectInitials}%')
-				--and PR.source='customer'
                 and PR.ID = PV.PROCESS_ID	
                 AND CAP.PK_ID = PR.ID
                 AND CAP.LANGUAGE_CODE = 'en' 
