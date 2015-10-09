@@ -15,7 +15,7 @@
     <gel:parameter default="admin" var="XOGUsername"/>
     <gel:parameter default="c" var="XOGPassword"/>
 
-	<core:set var="DebugLevel">0</core:set>
+	<core:set var="DebugLevel">2</core:set>
 	<gel:persist var="DebugLevel" value="${DebugLevel}" scope="INSTANCE"/>
 
 	<core:set var="vFound">0</core:set>
@@ -243,6 +243,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -320,6 +321,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -399,6 +401,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -487,6 +490,7 @@
 						</instance>
 					</gel:parse>
 
+					<core:set var="vFound">1</core:set>
 					<!-- Adding the new elements to the project -->
 					<gel:set insert="true"
 						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -566,6 +570,7 @@
 						</instance>
 					</gel:parse>
 
+					<core:set var="vFound">1</core:set>
 					<!-- Adding the new elements to the project -->
 					<gel:set insert="true"
 						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -642,6 +647,7 @@
 						</instance>
 					</gel:parse>
 
+					<core:set var="vFound">1</core:set>
 					<!-- Adding the new elements to the project -->
 					<gel:set insert="true"
 						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -740,6 +746,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -821,6 +828,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -902,6 +910,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1060,6 +1069,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1139,6 +1149,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1225,6 +1236,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1304,6 +1316,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1383,6 +1396,7 @@
 						</instance>
 					</gel:parse>
 
+					<core:set var="vFound">1</core:set>
 					<!-- Adding the new elements to the project -->
 					<gel:set insert="true"
 						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1465,6 +1479,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1543,6 +1558,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1621,6 +1637,7 @@
                     </instance>
                 </gel:parse>
 
+				<core:set var="vFound">1</core:set>
                 <!-- Adding the new elements to the project -->
                 <gel:set insert="true"
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1714,6 +1731,7 @@
 						</instance>
 					</gel:parse>
 
+					<core:set var="vFound">1</core:set>
 					<!-- Adding the new elements to the project -->
 					<gel:set insert="true"
 						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1818,6 +1836,7 @@
 						</instance>
 					</gel:parse>
 
+					<core:set var="vFound">1</core:set>
 					<!-- Adding the new elements to the project -->
 					<gel:set insert="true"
 						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1897,6 +1916,7 @@
 						</instance>
 					</gel:parse>
 
+					<core:set var="vFound">1</core:set>
 					<!-- Adding the new elements to the project -->
 					<gel:set insert="true"
 						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1973,6 +1993,7 @@
 						</instance>
 					</gel:parse>
 
+					<core:set var="vFound">1</core:set>
 					<!-- Adding the new elements to the project -->
 					<gel:set insert="true"
 						select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
@@ -1980,14 +2001,72 @@
 
 				<core:set var="vElementType">MasterObject</core:set>
 			</core:forEach>
-	
-			<core:if test="${DebugLevel &gt; 0}">
-				<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGROOT_${vStudioProjectID}.xml"/>
-			</core:if>
+			<core:set var="vProjectInitials">${row[0]}</core:set>
+		<core:set var="vProjectCode">${row[1]}</core:set>
+		<core:set var="vStudio_Part">${row[2]}</core:set>
+		<core:set var="vStudioProjectName">${row[3]}</core:set>
 
-			<!-- Calling XOG-->
-			<core:catch var="v_xog_exception">
-				<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+			<core:if test="${vFound==0}">
+				<gel:log level="WARNING">Nothing Found with Initials ${vProjectInitials} for Studio Project ${vProjectCode}-${vStudioProjectName}-${vStudioProjectID}</gel:log>
+			</core:if>
+			<core:if test="${vFound==1}">
+				<core:if test="${DebugLevel &gt; 0}">
+					<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGROOT_${vStudioProjectID}.xml"/>
+				</core:if>
+
+				<!-- Calling XOG-->
+				<core:catch var="v_xog_exception">
+					<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+						<soap:message>
+							<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+								<soapenv:Header>
+									<xog:Auth>
+										<xog:SessionID>${sessionID}</xog:SessionID>
+									</xog:Auth>
+								</soapenv:Header>
+								<soapenv:Body>
+									<gel:include select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus"/>
+								</soapenv:Body>
+							</soapenv:Envelope>
+						</soap:message>
+					</soap:invoke>
+				</core:catch>
+				<core:choose>
+					<core:when test="${v_xog_exception != null}">
+						<gel:out>[XOG]XOG operation failed: ${v_xog_exception}</gel:out>
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log category="XOG" level="ERROR">XOG operation failed: ${v_xog_exception}</gel:log>
+						</core:if>
+					</core:when>
+					<core:otherwise>
+						<gel:set
+							select="$runresult/soapenv:Envelope/soapenv:Body/XOGOutput" var="writeOutputRoot"/>
+						<gel:set asString="true"
+							select="$writeOutputRoot/Status/@state" var="XOGoutcome"/>
+						<gel:set asString="true"
+							select="$writeOutputRoot/Records/Record" var="XOGoutputrecords"/>
+						<gel:set asString="true"
+							select="$writeOutputRoot/Statistics/@totalNumberOfRecords" var="XOGtotalrecords"/>
+						<gel:set asString="true"
+							select="$writeOutputRoot/Statistics/@insertedRecords" var="XOGinsertedrecords"/>
+						<gel:set asString="true"
+							select="$writeOutputRoot/Statistics/@updatedRecords" var="XOGupdatedrecords"/>
+						<gel:set asString="true"
+							select="$writeOutputRoot/Statistics/@failureRecords" var="XOGfailurerecords"/>
+						<!-- Check the XOG result -->
+						<gel:out>[XOG]Document import for ${vStudioProjectID}</gel:out>
+						<gel:out>[XOG]Status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:out>
+
+						<core:if test="${DebugLevel &gt; 0}">
+							<gel:log category="XOG" level="INFO">[XOGDocument import for ${v_xog_resourceid} status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:log>
+						</core:if>
+					</core:otherwise>
+				</core:choose>
+				<core:if test="${DebugLevel &gt; 0}">
+					<gel:serialize var="${runresult}" fileName="${XOGlogFolder}/XOGResult_${vStudioProjectID}.xml"/>
+				</core:if>
+				<!-- Log out from XOG -->
+				<soap:invoke endpoint="${XOGURL}/niku/xog" var="logoutresult">
 					<soap:message>
 						<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
 							<soapenv:Header>
@@ -1996,61 +2075,12 @@
 								</xog:Auth>
 							</soapenv:Header>
 							<soapenv:Body>
-								<gel:include select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus"/>
+								<xog:Logout/>
 							</soapenv:Body>
 						</soapenv:Envelope>
 					</soap:message>
 				</soap:invoke>
-			</core:catch>
-            <core:choose>
-                <core:when test="${v_xog_exception != null}">
-                    <gel:out>[XOG]XOG operation failed: ${v_xog_exception}</gel:out>
-					<core:if test="${DebugLevel &gt; 0}">
-						<gel:log category="XOG" level="ERROR">XOG operation failed: ${v_xog_exception}</gel:log>
-					</core:if>
-                </core:when>
-                <core:otherwise>
-                    <gel:set
-                        select="$runresult/soapenv:Envelope/soapenv:Body/XOGOutput" var="writeOutputRoot"/>
-                    <gel:set asString="true"
-                        select="$writeOutputRoot/Status/@state" var="XOGoutcome"/>
-                    <gel:set asString="true"
-                        select="$writeOutputRoot/Records/Record" var="XOGoutputrecords"/>
-                    <gel:set asString="true"
-                        select="$writeOutputRoot/Statistics/@totalNumberOfRecords" var="XOGtotalrecords"/>
-                    <gel:set asString="true"
-                        select="$writeOutputRoot/Statistics/@insertedRecords" var="XOGinsertedrecords"/>
-                    <gel:set asString="true"
-                        select="$writeOutputRoot/Statistics/@updatedRecords" var="XOGupdatedrecords"/>
-                    <gel:set asString="true"
-                        select="$writeOutputRoot/Statistics/@failureRecords" var="XOGfailurerecords"/>
-                    <!-- Check the XOG result -->
-                    <gel:out>[XOG]Document import for ${vStudioProjectID}</gel:out>
-                    <gel:out>[XOG]Status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:out>
-
-					<core:if test="${DebugLevel &gt; 0}">
-						<gel:log category="XOG" level="INFO">[XOGDocument import for ${v_xog_resourceid} status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:log>
-					</core:if>
-                </core:otherwise>
-            </core:choose>
-			<core:if test="${DebugLevel &gt; 0}">
-				<gel:serialize var="${runresult}" fileName="${XOGlogFolder}/XOGResult_${vStudioProjectID}.xml"/>
 			</core:if>
-			<!-- Log out from XOG -->
-			<soap:invoke endpoint="${XOGURL}/niku/xog" var="logoutresult">
-				<soap:message>
-					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
-						<soapenv:Header>
-							<xog:Auth>
-								<xog:SessionID>${sessionID}</xog:SessionID>
-							</xog:Auth>
-						</soapenv:Header>
-						<soapenv:Body>
-							<xog:Logout/>
-						</soapenv:Body>
-					</soapenv:Envelope>
-				</soap:message>
-			</soap:invoke>
 		</core:otherwise>
     </core:choose>		
 </gel:script>
