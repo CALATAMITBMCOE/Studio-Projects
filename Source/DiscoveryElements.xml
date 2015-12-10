@@ -24,7 +24,7 @@
 
 	<core:if test="${DebugLevel &gt; 0}">
 		<gel:log level="debug" message="Start Script"/>	
-		<gel:log level="debug" message="Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="debug" message="Studio Package: ${vStudioProjectID}"/> 
 	</core:if>
 
     <gel:setDataSource dbId="Niku"/>
@@ -95,7 +95,7 @@
 	</core:if>
 		
 	<sql:query escapeText="false" var="vProject">
-		select INITIALS, CODE, PARTITION_CODE, NAME
+		select INITIALS, CODE, PARTITION_CODE, NAME, CONTENT_SOURCE
 		from odf_ca_stproj_project
 		Where id = ${vStudioProjectID}
 	</sql:query>
@@ -104,6 +104,7 @@
 		<core:set var="vProjectCode">${row[1]}</core:set>
 		<core:set var="vStudio_Part">${row[2]}</core:set>
 		<core:set var="vStudioProjectName">${row[3]}</core:set>
+		<core:set var="vStudioContentSource">${row[4]}</core:set>
 	</core:forEach>
 
     <!-- Log in to XOG-->
@@ -136,7 +137,7 @@
             <!-- Login successful - BEGIN GEL LOGIC  -->
             <gel:out>[XOG] XOG Login Successful. ${sessionID}.</gel:out>
 			<core:if test="${DebugLevel &gt; 0}">
-				<gel:log category="XOG" level="debug">[XOG] XOG Login Successful. ${sessionID}.</gel:log>
+				<gel:log category="XOG" level="debug">XOG Login Successful. ${sessionID}.</gel:log>
 			</core:if>
 			
 			<sql:update>
@@ -175,7 +176,7 @@
 			<core:set var="vElementType">StaticLookup</core:set>
 			<sql:query escapeText="false" var="vElements">
 				select LOV.LOOKUP_TYPE_CODE, CAP.NAME from cmn_list_of_values LOV, cmn_lookup_types LKP, cmn_captions_nls CAP
-				where upper(LOV.LOOKUP_TYPE_CODE) like upper('${vProjectInitials}%')
+				where ((upper(LOV.LOOKUP_TYPE_CODE) like upper('${vProjectInitials}%')) OR (upper(LKP.SOURCE) = upper('${vStudioContentSource}')))
 				AND LOV.LOOKUP_SOURCE_CODE != 'LOOKUP_SOURCE_DYNAMIC'
 				AND LOV.LOOKUP_TYPE_CODE = LKP.LOOKUP_TYPE
 				AND LKP.ID = CAP.PK_ID
@@ -253,7 +254,7 @@
 			<core:set var="vElementType">DynamicLookup</core:set>
 			<sql:query escapeText="false" var="vElements">
 				select LOV.LOOKUP_TYPE_CODE, CAP.NAME from cmn_list_of_values LOV, cmn_lookup_types LKP, cmn_captions_nls CAP
-				where upper(LOV.LOOKUP_TYPE_CODE) like upper('${vProjectInitials}%')
+				where ((upper(LOV.LOOKUP_TYPE_CODE) like upper('${vProjectInitials}%')) OR (upper(LKP.SOURCE) = upper('${vStudioContentSource}')))
 				AND LOV.LOOKUP_SOURCE_CODE = 'LOOKUP_SOURCE_DYNAMIC'
 				AND LOV.LOOKUP_TYPE_CODE = LKP.LOOKUP_TYPE
 				AND LKP.ID = CAP.PK_ID
@@ -334,7 +335,7 @@
 				where OO.component = 'odf' 
 				and nvl(OO.PARENT_OBJECT_CODE, '?')='?' 
 				AND OO.IS_CUSTOMIZABLE = 1
-				AND UPPER(OO.CODE) like UPPER('${vProjectInitials}%')
+				AND ((UPPER(OO.CODE) like UPPER('${vProjectInitials}%')) or (upper(OO.SOURCE) = upper('${vStudioContentSource}')))
 				AND OO.ID = CAP.PK_ID
 				AND CAP.LANGUAGE_CODE = 'en'
 				AND CAP.TABLE_NAME = 'ODF_OBJECTS'
@@ -503,7 +504,6 @@
 				<sql:query escapeText="false" var="vElements">
 					select PG.PAGE_CODE, PG.ID, CAP.NAME FROM CMN_PAGES PG, CMN_CAPTIONS_NLS CAP
 					WHERE UPPER(PG.PAGE_CODE) like UPPER('${vPageObject}%Frame')
-					and PG.source='customer'
                     AND CAP.PK_ID = PG.ID
                     AND CAP.LANGUAGE_CODE = 'en' 
                     AND CAP.tABLE_NAME = 'CMN_PAGES'
@@ -664,7 +664,7 @@
 				where OO.component = 'odf' 
 				and nvl(OO.PARENT_OBJECT_CODE, '?')!='?' 
 				AND OO.IS_CUSTOMIZABLE = 1
-				AND UPPER(OO.CODE) like UPPER('${vProjectInitials}%')
+				AND ((UPPER(OO.CODE) like UPPER('${vProjectInitials}%')) OR (upper(OO.SOURCE) = upper('${vStudioContentSource}')))
 				AND OO.ID = CAP.PK_ID
 				AND CAP.LANGUAGE_CODE = 'en'
 				AND CAP.TABLE_NAME = 'ODF_OBJECTS'
@@ -1000,7 +1000,7 @@
 			<core:set var="vElementType">Process</core:set>
 			<sql:query escapeText="false" var="vElements">
 				select PR.PROCESS_CODE, PV.ID, CAP.NAME FROM BPM_DEF_PROCESSES PR, BPM_DEF_PROCESS_VERSIONS PV, CMN_CAPTIONS_NLS CAP
-				WHERE UPPER(PR.PROCESS_CODE) like UPPER('${vProjectInitials}%')
+				WHERE ((UPPER(PR.PROCESS_CODE) like UPPER('${vProjectInitials}%')) OR (UPPER(PR.SOURCE)=upper('${vStudioContentSource}')))
                 and PR.ID = PV.PROCESS_ID	
                 AND CAP.PK_ID = PR.ID
                 AND CAP.LANGUAGE_CODE = 'en' 
@@ -1080,9 +1080,8 @@
 			<core:set var="vElementType">Query</core:set>
 			<sql:query escapeText="false" var="vElements">
 				select Q.QUERY_CODE, Q.ID, CAP.NAME FROM CMN_GG_NSQL_QUERIES Q, CMN_CAPTIONS_NLS CAP
-				WHERE UPPER(Q.QUERY_CODE) like UPPER('${vProjectInitials}%')
-				and Q.source='customer'
-                AND CAP.PK_ID = Q.ID
+				WHERE ((UPPER(Q.QUERY_CODE) like UPPER('${vProjectInitials}%')) OR (UPPER(Q.SOURCE)=upper('${vStudioContentSource}')))
+				AND CAP.PK_ID = Q.ID
                 AND CAP.LANGUAGE_CODE = 'en' 
                 AND CAP.tABLE_NAME = 'CMN_GG_NSQL_QUERIES'			
 			</sql:query>
@@ -1160,8 +1159,7 @@
 			<core:set var="vElementType">Portlet</core:set>
 			<sql:query escapeText="false" var="vElements">
 				select P.PORTLET_CODE, P.ID, lower(P.PORTLET_TYPE_CODE), CAP.NAME FROM CMN_PORTLETS P, CMN_CAPTIONS_NLS CAP
-				WHERE UPPER(P.PORTLET_CODE) like UPPER('${vProjectInitials}%')
-				and P.source='customer'
+				WHERE ((UPPER(P.PORTLET_CODE) like UPPER('${vProjectInitials}%')) OR (UPPER(P.SOURCE)=upper('${vStudioContentSource}')))
                 AND CAP.PK_ID = P.ID
                 AND CAP.LANGUAGE_CODE = 'en' 
                 AND CAP.tABLE_NAME = 'CMN_PORTLETS'		
@@ -1246,9 +1244,8 @@
 			<core:set var="vElementType">Page</core:set>
 			<sql:query escapeText="false" var="vElements">
 				select PG.PAGE_CODE, PG.ID, CAP.NAME FROM CMN_PAGES PG, CMN_CAPTIONS_NLS CAP
-				WHERE UPPER(PG.PAGE_CODE) like UPPER('${vProjectInitials}%')
-				and PG.source='customer'
-                AND CAP.PK_ID = PG.ID
+				WHERE ((UPPER(PG.PAGE_CODE) like UPPER('${vProjectInitials}%')) OR (UPPER(PG.SOURCE)=upper('${vStudioContentSource}')))
+				AND CAP.PK_ID = PG.ID
                 AND CAP.LANGUAGE_CODE = 'en' 
                 AND CAP.tABLE_NAME = 'CMN_PAGES'
 				and PG.PAGE_TYPE_CODE in ('tabPage', 'page')
@@ -1326,7 +1323,7 @@
 				<core:set var="vElementType">Menu</core:set>
 				<sql:query escapeText="false" var="vElements">
 					select AC.ACTION_CODE, CAP.NAME FROM CMN_ACTIONS AC, CMN_CAPTIONS_NLS CAP, CMN_PAGES PG, cmn_menu_items MI
-					WHERE UPPER(PG.PAGE_CODE) like UPPER('${vProjectInitials}%')
+					WHERE ((UPPER(PG.PAGE_CODE) like UPPER('${vProjectInitials}%')) OR (UPPER(PG.SOURCE)=upper('${vStudioContentSource}')))
                     AND AC.ACTION_CODE = PG.PAGE_CODE
                     and MI.ACTION_ID = AC.ID
                     and MI.CONTAINER_TYPE_CODE = 'MENU'
@@ -1485,6 +1482,164 @@
                     select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
 			</core:forEach>
 
+
+            <!-- Finding OBS using ProjectInitials -->
+			<core:set var="vElementType">obs</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select OBS.UNIQUE_NAME, OBS.ID, OBS.NAME
+				FROM PRJ_OBS_TYPES OBS 
+				WHERE UPPER(OBS.UNIQUE_NAME) like UPPER('${vProjectInitials}%')
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementIntl">${row[1]}</core:set>
+				<core:set var="vElementName">${row[2]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				
+				<!--core:set var="vElementID">GR=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:nmc.obsProperties&amp;id=${vElementIntl}"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"></ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+				<core:set var="vFound">1</core:set>
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+
+
+            <!-- Finding UI Themes using ProjectInitials -->
+			<core:set var="vElementType">uiTheme</core:set>
+			<sql:query escapeText="false" var="vElements">
+				select U.code, U.ID, CAP.NAME  
+				from CMN_UI_THEMES U  
+				  INNER JOIN CMN_CAPTIONS_NLS CAP 
+								ON CAP.PK_ID = U.ID 
+								AND CAP.LANGUAGE_CODE = 'en'  
+								AND CAP.TABLE_NAME = 'CMN_UI_THEMES' 
+				WHERE UPPER(U.CODE) like UPPER('${vProjectInitials}%')  
+			</sql:query>
+			<core:forEach items="${vElements.rowsByIndex}" var="row">
+				<core:set var="vElementCode">${row[0]}</core:set>
+				<core:set var="vElementIntl">${row[1]}</core:set>
+				<core:set var="vElementName">${row[2]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="${vElementType}: ${vElementCode}"/> 
+				</core:if>
+
+				<sql:query escapeText="false" var="vAutoNum">
+					select NEXT_VALUE,ID from CMN_AUTONUM_SCHEMES 
+					where OBJECT_CODE = 'stproj_element' and attribute_code = 'code'	
+				</sql:query>
+				<core:forEach items="${vAutoNum.rowsByIndex}" var="row">
+					<core:set var="vElementID">${row[0]}</core:set>
+					<core:set var="vSchemeID">${row[1]}</core:set>
+				</core:forEach>
+
+				<sql:update>
+					update CMN_AUTONUM_SCHEME_SEGMENTS 
+					set NEXT_VALUE = NEXT_VALUE+1 
+					where scheme_id = ${vSchemeID}
+					and SEGMENT_CODE='NUMERIC'
+				</sql:update>
+				<sql:update>
+					update CMN_AUTONUM_SCHEMES set NEXT_VALUE = (select RPAD(S1.TEXT_VALUE,S2.LENGTH-LENGTH(TRIM(TO_CHAR(S2.NEXT_VALUE)))+LENGTH(TRIM(S1.TEXT_VALUE)),'0')||TO_CHAR(S2.NEXT_VALUE)
+												FROM CMN_AUTONUM_SCHEME_SEGMENTS S1, CMN_AUTONUM_SCHEME_SEGMENTS S2
+												WHERE S1.SCHEME_ID = S2.SCHEME_ID
+												AND S1.SEGMENT_CODE='TEXT' and S2.SEGMENT_CODE='NUMERIC'
+												AND S1.SCHEME_ID = CMN_AUTONUM_SCHEMES.ID)
+					WHERE ID  = ${vSchemeID}
+				</sql:update>
+
+				
+				<!--core:set var="vElementID">GR=${vElementCode}</core:set-->
+				<!--core:set var="vElementName">${vElementType}-${vElementCode}</core:set-->
+				<core:set var="vElementURL" value="/niku/nu#action:nmc.uif.uiTheme&amp;id=${vElementIntl}"/>
+				<gel:parse var="vElementInstance">
+                    <instance
+                        instanceCode="${vElementID}"
+                        objectCode="stproj_element"
+                        parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                        <CustomInformation>
+                            <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                            <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                            <ColumnValue name="name">${vElementName}</ColumnValue>
+                            <ColumnValue name="code">${vElementID}</ColumnValue>
+                            <ColumnValue name="element_id">${vElementCode}</ColumnValue>
+                            <ColumnValue name="element_part_code">NIKU.ROOT</ColumnValue>
+                            <ColumnValue name="element_type">${vElementType}</ColumnValue>
+                            <ColumnValue name="is_autodiscovered">1</ColumnValue>
+                            <ColumnValue name="master_object"></ColumnValue>
+							<ColumnValue name="element_url_link">${vElementURL}</ColumnValue>
+							<ColumnValue name="element_url_flag">1</ColumnValue>
+                        </CustomInformation>
+                        <OBSAssocs completed="false"/>
+                            <Security>
+                                <UserSecurity
+                                    rightCode="odf_cst_stproj_element_edit" userName="admin"/>
+                            </Security>
+                    </instance>
+                </gel:parse>
+
+				<core:set var="vFound">1</core:set>
+                <!-- Adding the new elements to the project -->
+                <gel:set insert="true"
+                    select="$v_xml_root/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance/CustomInformation" value="${vElementInstance}"/>
+			</core:forEach>
+
             <!-- Finding Reports  using ProjectInitials  -->
 			<core:set var="vElementType">Report</core:set>
 			<sql:query escapeText="false" var="vElements">
@@ -1493,7 +1648,7 @@
 				AND JR.ID = CAP.PK_ID
 				AND CAP.TABLE_NAME = 'CMN_SCH_JOB_DEFINITIONS'
 				AND LANGUAGE_CODE = 'en'
-				AND upper(JR.JOB_CODE) like upper('${vProjectInitials}%')
+				AND ((upper(JR.JOB_CODE) like upper('${vProjectInitials}%')) OR (UPPER(JR.SOURCE)=upper('${vStudioContentSource}')))
 			</sql:query>
 			<core:forEach items="${vElements.rowsByIndex}" var="row">
 				<core:set var="vElementCode">${row[0]}</core:set>
@@ -1572,7 +1727,7 @@
 				AND JR.ID = CAP.PK_ID
 				AND CAP.TABLE_NAME = 'CMN_SCH_JOB_DEFINITIONS'
 				AND LANGUAGE_CODE = 'en'
-				AND upper(JR.JOB_CODE) like upper('${vProjectInitials}%')
+				AND ((upper(JR.JOB_CODE) like upper('${vProjectInitials}%')) OR (UPPER(JR.SOURCE)=upper('${vStudioContentSource}')))
 			</sql:query>
 			<core:forEach items="${vElements.rowsByIndex}" var="row">
 				<core:set var="vElementCode">${row[0]}</core:set>
@@ -1647,7 +1802,6 @@
 			<sql:query escapeText="false" var="vElements">
 				select PG.PAGE_CODE, PG.ID, CAP.NAME FROM CMN_PAGES PG, CMN_CAPTIONS_NLS CAP, ODF_CA_STPROJ_ELEMENT SE
 				WHERE UPPER(PG.PAGE_CODE) = UPPER(SE.ELEMENT_ID)
-				and PG.source='customer'
                 AND CAP.PK_ID = PG.ID
                 AND CAP.LANGUAGE_CODE = 'en' 
                 AND CAP.tABLE_NAME = 'CMN_PAGES'
@@ -1849,7 +2003,6 @@
 				<sql:query escapeText="false" var="vElements">
 					select PG.PAGE_CODE, PG.ID, CAP.NAME FROM CMN_PAGES PG, CMN_CAPTIONS_NLS CAP
 					WHERE UPPER(PG.PAGE_CODE) like UPPER('${vPageObject}%Frame')
-					and PG.source='customer'
                     AND CAP.PK_ID = PG.ID
                     AND CAP.LANGUAGE_CODE = 'en' 
                     AND CAP.tABLE_NAME = 'CMN_PAGES'
@@ -2007,7 +2160,7 @@
 		<core:set var="vStudioProjectName">${row[3]}</core:set>
 
 			<core:if test="${vFound==0}">
-				<gel:log level="WARNING">Nothing Found with Initials ${vProjectInitials} for Studio Project ${vProjectCode}-${vStudioProjectName}-${vStudioProjectID}</gel:log>
+				<gel:log level="WARNING">Nothing Found with Initials ${vProjectInitials} or content Source ${vStudioContentSource} for Studio Package ${vProjectCode}-${vStudioProjectName}-${vStudioProjectID}</gel:log>
 			</core:if>
 			<core:if test="${vFound==1}">
 				<core:if test="${DebugLevel &gt; 0}">
@@ -2054,11 +2207,8 @@
 						<gel:set asString="true"
 							select="$writeOutputRoot/Statistics/@failureRecords" var="XOGfailurerecords"/>
 						<!-- Check the XOG result -->
-						<gel:out>[XOG]Document import for ${vStudioProjectID}</gel:out>
-						<gel:out>[XOG]Status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:out>
-
 						<core:if test="${DebugLevel &gt; 0}">
-							<gel:log category="XOG" level="INFO">[XOGDocument import for ${v_xog_resourceid} status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:log>
+							<gel:log category="XOG" level="INFO">Document import for ${v_xog_resourceid} status:${XOGoutcome} Total Objs: ${XOGtotalrecords}, Total inserted: ${XOGinsertedrecords}, Total updated: ${XOGupdatedrecords}, Total failed: ${XOGfailurerecords}</gel:log>
 						</core:if>
 					</core:otherwise>
 				</core:choose>

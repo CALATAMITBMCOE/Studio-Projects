@@ -1,5 +1,6 @@
 <gel:script 
  xmlns:core="jelly:core" 
+ xmlns:x="jelly:xml" 
     xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
     xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
     xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
@@ -69,7 +70,8 @@
 
 		<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_02-Objects_${vElementID}_${vStudioProjectID}.xml"/>
+			<gel:serialize var="${v_xml_root}" fileName="${XOGwebFolder}/XOGREAD_02-Objects_${vElementID}_${vStudioProjectID}.xml"/>
+			<gel:log level="debug" message="XOG Write can be found at: ${XOGURL}/niku/XOGREAD_02-Objects_${vElementID}_${vStudioProjectID}.xml"/> 
 		</core:if>
 
 		<!-- Calling XOG-->
@@ -89,13 +91,52 @@
 				</soap:message>
 			</soap:invoke>
 		</core:catch>
-		
-		<!--Genereting Final OUTPUT -->
+
+		<!--Generating Final OUTPUT (with Actions) -->
 		<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
-		<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/02-Objects_${vElementID}.xml"/>
-		<core:if test="${DebugLevel &gt; 0}">
-			<gel:log level="debug" message="Final Output File: ${vPackagingPath}\02-Objects_${vElementID}.xml"/> 
+
+		<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:serialize var="${vFinalOutput}" fileName="${XOGwebFolder}/vFinalOutput_${vElementID}_${vStudioProjectID}.xml"/>
+			<gel:log level="debug" message="XOG Write can be found at: ${XOGURL}/niku/vFinalOutput_${vElementID}_${vStudioProjectID}.xml"/> 
 		</core:if>
+
+		<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/15-Objects_${vElementID}.xml"/>
+		<core:if test="${DebugLevel &gt; 0}">
+			<gel:log level="debug" message="Final Output File: ${vPackagingPath}/15-Objects_${vElementID}.xml"/> 
+		</core:if>
+
+		<!-- Remove um node -->
+		<gel:parse var="RemoveNode">
+			<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+				<xsl:output indent="yes" method="xml" encoding="utf-8" omit-xml-declaration="yes"/>
+				<xsl:strip-space elements="*" />
+				<xsl:template match="@*|node()">
+					<xsl:copy>
+						<xsl:apply-templates select="@*|node()"/>
+					</xsl:copy>
+				</xsl:template>
+				<xsl:template match="actions">
+					<actions/>
+				</xsl:template>
+			</xsl:stylesheet>
+		</gel:parse>
+
+		<x:parse var="xformInput"><gel:include select="$vFinalOutput"/></x:parse>
+		<x:parse var="xformTemplate"><gel:include select="$RemoveNode"/></x:parse>
+
+		<!--	Transform -->
+		<gel:parse var="xformOutput">
+			<x:transform xml="${xformInput}" xslt="${xformTemplate}"/>
+		</gel:parse>
+		
+
+		<!--Generating Final OUTPUT (no Actions) -->
+		<gel:serialize var="${xformOutput}" fileName="${vPackagingPath}/02-Objects_${vElementID}.xml"/>
+		<core:if test="${DebugLevel &gt; 0}">
+			<gel:log level="debug" message="Final Output File: ${vPackagingPath}/02-Objects_${vElementID}.xml"/> 
+		</core:if>
+
 	</core:forEach>
 
 </gel:script>

@@ -26,7 +26,7 @@
     <gel:setDataSource dbId="Niku"/>
 	
 	<sql:query escapeText="false" var="vProject">
-		select SP.PROJECT_CODE, SP.PACKAGING_PATH, SP.OUT_FOLDER_PATH, SP.XOG_HOME, CI.XOG_URL, CI.XOG_USERNAME, CI.XOG_PASSWORD, CI.XOG_PORT, Case CI.SSLENABLED when 0 then 'False' else 'True' end SSLENABLED, SP.ST_INCLUDE 
+		select SP.PROJECT_CODE, SP.PACKAGING_PATH, SP.OUT_FOLDER_PATH, SP.XOG_HOME, CI.XOG_URL, CI.XOG_USERNAME, CI.XOG_PASSWORD, CI.XOG_PORT, Case CI.SSLENABLED when 0 then 'False' else 'True' end SSLENABLED, SP.ST_INCLUDE, CI.XOG_JAVA_PATH, SP.INCLUDE_CM
 		from odf_ca_stproj_project SP, odf_ca_stproj_clarity_inst CI
 		Where SP.id = ${vStudioProjectID}
 		AND SP.target_instance = CI.code
@@ -43,6 +43,8 @@
 		<core:set var="vXOGPort">${row[7]}</core:set>
 		<core:set var="vSSL">${row[8]}</core:set>
 		<core:set var="vInclude">${row[9]}</core:set>
+		<core:set var="vXOGJava">${row[10]}</core:set>
+		<core:set var="vIncludeCM">${row[11]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:log level="debug" message="vProjectCode  : ${vProjectCode}"/> 
 			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
@@ -55,6 +57,8 @@
 			<gel:log level="debug" message="vXOGPort      : ${vXOGPort}"/> 
 			<gel:log level="debug" message="vSSL          : ${vSSL}"/> 
 			<gel:log level="debug" message="vInclude      : ${vInclude}"/> 
+			<gel:log level="debug" message="vXOGJava      : ${vXOGJava}"/> 
+			<gel:log level="debug" message="vIncludeCM    : ${vIncludeCM}"/> 
 		</core:if>
 	</core:forEach>
 
@@ -92,6 +96,10 @@
 		<file:line>
 			<file:column value="${vLine}"/>
 		</file:line>
+		<core:set var="vLine">SET JAVA_HOME=${vXOGJava}</core:set>
+		<file:line>
+			<file:column value="${vLine}"/>
+		</file:line>
 		<core:set var="vLine">CD ${vInputPath}</core:set>
 		<file:line>
 			<file:column value="${vLine}"/>
@@ -101,326 +109,328 @@
 			<file:column value="${vLine}"/>
 		</file:line>
 		
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'StaticLookup'
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vTest">${row[0]}</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/01-StaticLookup_out.xml -input ${vInputPath}/01-StaticLookup.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
+		<core:if test="${vIncludeCM}">
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'StaticLookup'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/01-StaticLookup_out.xml -input ${vInputPath}/01-StaticLookup.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
 
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select ELEMENT_ID, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'MasterObject' group by ELEMENT_ID
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vObjCode">${row[0]}</core:set>
-			<core:set var="vTest">${row[1]}</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vObjCode: ${vObjCode}"/> 
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/02-Objects_${vObjCode}_out.xml -input ${vInputPath}/02-Objects_${vObjCode}.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select ELEMENT_ID, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'MasterObject' group by ELEMENT_ID
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vObjCode">${row[0]}</core:set>
+				<core:set var="vTest">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vObjCode: ${vObjCode}"/> 
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/02-Objects_${vObjCode}_out.xml -input ${vInputPath}/02-Objects_${vObjCode}.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
 
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select MASTER_OBJECT, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'SubObject' group by MASTER_OBJECT
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vMaster">${row[0]}</core:set>
-			<core:set var="vTest">${row[1]}</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vMaster: ${vMaster}"/> 
-				<gel:log level="debug" message="vTest  : ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/03-SubObjects_${vMaster}_out.xml -input ${vInputPath}/03-SubObjects_${vMaster}.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select MASTER_OBJECT, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'SubObject' group by MASTER_OBJECT
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vMaster">${row[0]}</core:set>
+				<core:set var="vTest">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vMaster: ${vMaster}"/> 
+					<gel:log level="debug" message="vTest  : ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/03-SubObjects_${vMaster}_out.xml -input ${vInputPath}/03-SubObjects_${vMaster}.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
 
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'DynamicLookup'
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vTest">${row[0]}</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/04-DynamicLookup_out.xml -input ${vInputPath}/04-DynamicLookup.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'DynamicLookup'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/04-DynamicLookup_out.xml -input ${vInputPath}/04-DynamicLookup.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
 
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type like '%Object'
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vTest">${row[0]}</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/05-Views_out.xml -input ${vInputPath}/05-Views.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type like '%Object'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/05-Views_out.xml -input ${vInputPath}/05-Views.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
 
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select ELEMENT_ID, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'StockObject' group by ELEMENT_ID
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vMaster">${row[0]}</core:set>
-			<core:set var="vTest">${row[1]}</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06A-StockObject_${vMaster}_out.xml -input ${vInputPath}/06A-StockObject_${vMaster}.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select ELEMENT_ID, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'StockObject' group by ELEMENT_ID
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vMaster">${row[0]}</core:set>
+				<core:set var="vTest">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06A-StockObject_${vMaster}_out.xml -input ${vInputPath}/06A-StockObject_${vMaster}.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
 
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select ELEMENT_ID, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'StockSubObject' group by ELEMENT_ID
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vMaster">${row[0]}</core:set>
-			<core:set var="vTest">${row[1]}</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select ELEMENT_ID, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'StockSubObject' group by ELEMENT_ID
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vMaster">${row[0]}</core:set>
+				<core:set var="vTest">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
 
-			<!-- Temporary FIX For v13.3 XOG Error - eliminate first line with ?xml from file-->
+				<!-- Temporary FIX For v13.3 XOG Error - eliminate first line with ?xml from file-->
+					<core:set var="vLine">rem ******************************** ==========  A T T E N T I O N  ==========  ********************************</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+					<core:set var="vLine">rem A Bug in XOG 13.3 requires you to edit file 06B-StockSubObject and remove first line(?xml version) ìf present.</core:set> 
+					<file:line>
+						<file:column escapeText="false" value="${vLine}"/>
+					</file:line>
+					<!-- END Temporary FIX For v13.3 -->
+				
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06B-StockSubObject_${vMaster}_out.xml -input ${vInputPath}/06B-StockSubObject_${vMaster}.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select master_object, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'StockObjectCustAttr' group by master_object
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vMaster">${row[0]}</core:set>
+				<core:set var="vTest">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+
+				<!-- Temporary FIX For v13.3 XOG Error - eliminate first line with ?xml from file-->
 				<core:set var="vLine">rem ******************************** ==========  A T T E N T I O N  ==========  ********************************</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
-				<core:set var="vLine">rem A Bug in XOG 13.3 requires you to edit file 06B-StockSubObject and remove first line(?xml version) ìf present.</core:set> 
+				<core:set var="vLine">rem A Bug in XOG 13.3 requires you to edit file 06C-StockObjectCustomAttributes and remove first line(?xml version) ìf present.</core:set> 
 				<file:line>
-					<file:column escapeText="false" value="${vLine}"/>
+					<file:column value="${vLine}"/>
 				</file:line>
 				<!-- END Temporary FIX For v13.3 -->
+
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06C-StockObjectCustomAttributes_${vMaster}_out.xml -input ${vInputPath}/06C-StockObjectCustomAttributes_${vMaster}.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTOORDER
+				from odf_ca_stproj_element E 
+					inner join ODF_VIEWS OV on OV.object_code = E.element_id 
+					left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
+				where element_type in ('StockObject','StockSubObject')
+				and odf_parent_id = ${vStudioProjectID}
+				and ov.view_type in ('property','filter')
+				order by E.ELEMENT_ID, VIEWTYPE, PARTOORDER, OV.PARTITION_CODE
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vObjectCode">${row[0]}</core:set>
+				<core:set var="vViewCode">${row[1]}</core:set>
+				<core:set var="vPartitionCode">${row[2]}</core:set>
+				<core:set var="vPartitionOrdr">${row[3]}</core:set>
+				<core:set var="vTest">1</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml -input ${vInputPath}/06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
 			
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06B-StockSubObject_${vMaster}_out.xml -input ${vInputPath}/06B-StockSubObject_${vMaster}.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTOORDER
+				from odf_ca_stproj_element E 
+					inner join ODF_VIEWS OV on OV.object_code = E.element_id 
+					left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
+				where element_type = 'StockObjectListView'
+				and odf_parent_id = ${vStudioProjectID}
+				and ov.view_type = 'filter'
+				and ((e.st_elem_view_part = OV.PARTITION_CODE) or (e.st_elem_view_part is null))
+				order by E.ELEMENT_ID, VIEWTYPE, PARTOORDER, OV.PARTITION_CODE
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vObjectCode">${row[0]}</core:set>
+				<core:set var="vViewCode">${row[1]}</core:set>
+				<core:set var="vPartitionCode">${row[2]}</core:set>
+				<core:set var="vPartitionOrdr">${row[3]}</core:set>
+				<core:set var="vTest">1</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml -input ${vInputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
 
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select master_object, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'StockObjectCustAttr' group by master_object
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vMaster">${row[0]}</core:set>
-			<core:set var="vTest">${row[1]}</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTOORDER
+				from odf_ca_stproj_element E 
+					inner join ODF_VIEWS OV on OV.object_code = E.element_id 
+					left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
+				where element_type = 'StockObjectPropertiesView'
+				and odf_parent_id = ${vStudioProjectID}
+				and ov.view_type = 'property'
+				and ((e.st_elem_view_part = OV.PARTITION_CODE) or (e.st_elem_view_part is null))
+				order by E.ELEMENT_ID, VIEWTYPE, PARTOORDER, OV.PARTITION_CODE
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vObjectCode">${row[0]}</core:set>
+				<core:set var="vViewCode">${row[1]}</core:set>
+				<core:set var="vPartitionCode">${row[2]}</core:set>
+				<core:set var="vPartitionOrdr">${row[3]}</core:set>
+				<core:set var="vTest">1</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml -input ${vInputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
 
-			<!-- Temporary FIX For v13.3 XOG Error - eliminate first line with ?xml from file-->
-			<core:set var="vLine">rem ******************************** ==========  A T T E N T I O N  ==========  ********************************</core:set>
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-			<core:set var="vLine">rem A Bug in XOG 13.3 requires you to edit file 06C-StockObjectCustomAttributes and remove first line(?xml version) ìf present.</core:set> 
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-			<!-- END Temporary FIX For v13.3 -->
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Process'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/07-Processes_out.xml -input ${vInputPath}/07-Processes.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
 
-			<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06C-StockObjectCustomAttributes_${vMaster}_out.xml -input ${vInputPath}/06C-StockObjectCustomAttributes_${vMaster}.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Query'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/08-Queries_out.xml -input ${vInputPath}/08-Queries.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
 
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTOORDER
-			from odf_ca_stproj_element E 
-				inner join ODF_VIEWS OV on OV.object_code = E.element_id 
-				left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
-			where element_type in ('StockObject','StockSubObject')
-			and odf_parent_id = ${vStudioProjectID}
-			and ov.view_type in ('property','filter')
-			order by E.ELEMENT_ID, VIEWTYPE, PARTOORDER, OV.PARTITION_CODE
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vObjectCode">${row[0]}</core:set>
-			<core:set var="vViewCode">${row[1]}</core:set>
-			<core:set var="vPartitionCode">${row[2]}</core:set>
-			<core:set var="vPartitionOrdr">${row[3]}</core:set>
-			<core:set var="vTest">1</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml -input ${vInputPath}/06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
-		
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTOORDER
-			from odf_ca_stproj_element E 
-				inner join ODF_VIEWS OV on OV.object_code = E.element_id 
-				left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
-			where element_type = 'StockObjectListView'
-			and odf_parent_id = ${vStudioProjectID}
-			and ov.view_type = 'filter'
-			and ((e.st_elem_view_part = OV.PARTITION_CODE) or (e.st_elem_view_part is null))
-			order by E.ELEMENT_ID, VIEWTYPE, PARTOORDER, OV.PARTITION_CODE
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vObjectCode">${row[0]}</core:set>
-			<core:set var="vViewCode">${row[1]}</core:set>
-			<core:set var="vPartitionCode">${row[2]}</core:set>
-			<core:set var="vPartitionOrdr">${row[3]}</core:set>
-			<core:set var="vTest">1</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml -input ${vInputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Portlet'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/09-Portlets_out.xml -input ${vInputPath}/09-Portlets.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
 
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTOORDER
-			from odf_ca_stproj_element E 
-				inner join ODF_VIEWS OV on OV.object_code = E.element_id 
-				left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
-			where element_type = 'StockObjectPropertiesView'
-			and odf_parent_id = ${vStudioProjectID}
-			and ov.view_type = 'property'
-			and ((e.st_elem_view_part = OV.PARTITION_CODE) or (e.st_elem_view_part is null))
-			order by E.ELEMENT_ID, VIEWTYPE, PARTOORDER, OV.PARTITION_CODE
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vObjectCode">${row[0]}</core:set>
-			<core:set var="vViewCode">${row[1]}</core:set>
-			<core:set var="vPartitionCode">${row[2]}</core:set>
-			<core:set var="vPartitionOrdr">${row[3]}</core:set>
-			<core:set var="vTest">1</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml -input ${vInputPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
-
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Process'
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vTest">${row[0]}</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/07-Processes_out.xml -input ${vInputPath}/07-Processes.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
-
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Query'
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vTest">${row[0]}</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/08-Queries_out.xml -input ${vInputPath}/08-Queries.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
-
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Portlet'
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vTest">${row[0]}</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/09-Portlets_out.xml -input ${vInputPath}/09-Portlets.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
-
-		<core:set var="vTest">0</core:set>
-		<sql:query var="vCount">
-			select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Page'
-		</sql:query>
-		<core:forEach items="${vCount.rowsByIndex}" var="row">
-			<core:set var="vTest">${row[0]}</core:set>
-			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
-			</core:if>
-			<core:if test="${vTest &gt; 0}">
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/10-Pages_out.xml -input ${vInputPath}/10-Pages.xml</core:set>
-				<file:line>
-					<file:column value="${vLine}"/>
-				</file:line>
-			</core:if>
-		</core:forEach>
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Page'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/10-Pages_out.xml -input ${vInputPath}/10-Pages.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+		</core:if>
 
 		<core:set var="vTest">0</core:set>
 		<sql:query var="vCount">
@@ -469,6 +479,63 @@
 			</core:if>
 		</core:forEach>
 
+		<core:set var="vTest">0</core:set>
+		<sql:query var="vCount">
+			select element_id, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'obs' group by element_id
+		</sql:query>
+		<core:forEach items="${vCount.rowsByIndex}" var="row">
+			<core:set var="vOBSCode">${row[0]}</core:set>
+			<core:set var="vTest">${row[1]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vTest: ${vTest}"/> 
+			</core:if>
+			<core:if test="${vTest &gt; 0}">
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/13-OBS_${vOBSCode}_out.xml -input ${vInputPath}/13-OBS_${vOBSCode}.xml</core:set>
+				<file:line>
+					<file:column value="${vLine}"/>
+				</file:line>
+			</core:if>
+		</core:forEach>
+		
+		<core:set var="vTest">0</core:set>
+		<sql:query var="vCount">
+			select element_id, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'uiTheme' group by element_id
+		</sql:query>
+		<core:forEach items="${vCount.rowsByIndex}" var="row">
+			<core:set var="vUITheme">${row[0]}</core:set>
+			<core:set var="vTest">${row[1]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vTest: ${vTest}"/> 
+			</core:if>
+			<core:if test="${vTest &gt; 0}">
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/14-UITheme_${vUITheme}_out.xml -input ${vInputPath}/14-UITheme_${vUITheme}.xml</core:set>
+				<file:line>
+					<file:column value="${vLine}"/>
+				</file:line>
+			</core:if>
+		</core:forEach>
+
+		<core:if test="${vIncludeCM}">
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select ELEMENT_ID, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'MasterObject' group by ELEMENT_ID
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vObjCode">${row[0]}</core:set>
+				<core:set var="vTest">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vObjCode: ${vObjCode}"/> 
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/15-Objects_${vObjCode}_out.xml -input ${vInputPath}/15-Objects_${vObjCode}.xml</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+		</core:if>
+		
 		<core:set var="vTest">0</core:set>
 		<sql:query var="vCount">
 			select data_object_type, object_order, count(*) from odf_ca_stproj_data where ODF_PARENT_ID = ${vStudioProjectID} and data_type = 'Seed'
