@@ -1,9 +1,9 @@
-<gel:script 
- xmlns:core="jelly:core" 
+<gel:script
+ xmlns:core="jelly:core"
     xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
     xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
     xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
-    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"
     xmlns:sql="jelly:sql"
     xmlns:xog="http://www.niku.com/xog"
     xmlns:xsd="http://www.w3.org/2001/XMLSchema"
@@ -11,21 +11,21 @@
     xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
     xmlns:util="jelly:util"
     xmlns:q="http://www.niku.com/xog/Query">
-	
+
 	<core:set var="vFound">0</core:set>
-	
+
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
 	<core:if test="${DebugLevel &gt; 0}">
 		<gel:log level="debug" message="Start Script"/>
-		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
-		<gel:log level="debug" message=">>Persisted XOG URL  : ${XOGURL}"/> 
-		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/> 
-		<gel:log level="debug" message=">>Persisted SessionID: ${sessionID}"/> 
-		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
+		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/>
+		<gel:log level="debug" message=">>Persisted XOG URL  : ${XOGURL}"/>
+		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/>
+		<gel:log level="debug" message=">>Persisted SessionID: ${sessionID}"/>
+		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/>
 	</core:if>
 
     <gel:setDataSource dbId="Niku"/>
-	
+
 	<sql:query escapeText="false" var="vProject">
 		select PACKAGING_PATH from odf_ca_stproj_project
 		Where id = ${vStudioProjectID}
@@ -33,10 +33,10 @@
 	<core:forEach items="${vProject.rowsByIndex}" var="row">
 		<core:set var="vPackagingPath">${row[0]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
+			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/>
 		</core:if>
 	</core:forEach>
-	
+
 	<!-- Fetching MasterObjects-->
 	<sql:query escapeText="false" var="vElements">
 		select distinct MASTER_OBJECT from odf_ca_stproj_element
@@ -46,10 +46,10 @@
 	<core:forEach items="${vElements.rowsByIndex}" var="row">
 		<core:set var="vMaster">${row[0]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vMaster   : ${vMaster}"/> 
+			<gel:log level="debug" message="vMaster   : ${vMaster}"/>
 		</core:if>
 		<core:set var="vFound">1</core:set>
-				
+
 		<!-- This is the XML Root Document-->
 		<gel:parse var="v_xml_root">
 			<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
@@ -63,13 +63,13 @@
 				</ObjectQuery>
 			</NikuDataBus>
 		</gel:parse>
-	
+
 		<core:if test="${vFound == 1}">
 			<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
 			<core:if test="${DebugLevel &gt; 1}">
 				<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_03-SubObjects_${vMaster}_${vStudioProjectID}.xml"/>
 			</core:if>
-	
+
 			<!-- Calling XOG-->
 			<core:catch var="v_xog_exception">
 				<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
@@ -87,7 +87,7 @@
 					</soap:message>
 				</soap:invoke>
 			</core:catch>
-			
+
 			<!--Serializing Full Master Object for Debugging-->
 			<core:if test="${DebugLevel &gt; 0}">
 				<gel:serialize var="${runresult}" fileName="${XOGlogFolder}/XOGWRITE_03-SubObjects_Full_${vMaster}_${vStudioProjectID}.xml"/>
@@ -103,23 +103,23 @@
 					</contentPack>
 				</NikuDataBus>
 			</gel:parse>
-		
+
 			<gel:set var="vMIcode" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/@code" asString="true"/>
 			<gel:set var="vMIraiseEvents" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/@raiseEvents" asString="true"/>
 			<gel:set var="vMIsource" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/@source" asString="true"/>
-		
+
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vMIcode: ${vMIcode}"/> 
-				<gel:log level="debug" message="vMIraiseEvents: ${vMIraiseEvents}"/> 
-				<gel:log level="debug" message="vMIsource: ${vMIsource}"/> 
+				<gel:log level="debug" message="vMIcode: ${vMIcode}"/>
+				<gel:log level="debug" message="vMIraiseEvents: ${vMIraiseEvents}"/>
+				<gel:log level="debug" message="vMIsource: ${vMIsource}"/>
 			</core:if>
-		
+
 			<gel:parse var="vMasterInstance">
 				<object code="${vMIcode}" raiseEvents="${vMIraiseEvents}"
 					source="${vMIsource}" update="true">
 				</object>
 			</gel:parse>
-		
+
 			<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/nls" var="vNLS">
 				<gel:set select="$vMasterInstance/object" value="${vNLS}" insert="true"/>
 			</gel:forEach>
@@ -134,15 +134,15 @@
 			<core:forEach items="${vElements2.rowsByIndex}" var="row">
 				<core:set var="vElementID">${row[0]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vElementID   : ${vElementID}"/> 
+					<gel:log level="debug" message="vElementID   : ${vElementID}"/>
 				</core:if>
 				<core:set var="vFound">1</core:set>
-			
+
 
 				<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/object" var="vSubObject">
 					<gel:set var="vSubObjectCode" select="$vSubObject/@code" asString="true"/>
 					<core:if test="${DebugLevel &gt; 1}">
-						<gel:log level="debug" message="vSubObjectCode: ${vSubObjectCode}"/> 
+						<gel:log level="debug" message="vSubObjectCode: ${vSubObjectCode}"/>
 					</core:if>
 					<core:if test="${vSubObjectCode == vElementID}">
 						<gel:set select="$vMasterInstance/object" value="${vSubObject}" insert="true"/>
@@ -152,11 +152,11 @@
 			</core:forEach>
 
 			<gel:set select="$v_xml_new/NikuDataBus/contentPack/objects" value="${vMasterInstance}" insert="true"/>
-			
+
 			<!--Generating Final OUTPUT -->
 			<gel:serialize var="${v_xml_new}" fileName="${vPackagingPath}/03-SubObjects_${vMaster}.xml"/>
 			<core:if test="${DebugLevel &gt; 0}">
-				<gel:log level="debug" message="Final Output File: ${vPackagingPath}\03-SubObjects_${vMaster}.xml"/> 
+				<gel:log level="debug" message="Final Output File: ${vPackagingPath}\03-SubObjects_${vMaster}.xml"/>
 			</core:if>
 		</core:if>
 	</core:forEach>
