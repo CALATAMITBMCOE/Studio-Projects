@@ -46,57 +46,57 @@
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
 		</core:if>
-	</core:forEach>
 			
-	<sql:query escapeText="false" var="vElements">
-		select ELEMENT_ID from odf_ca_stproj_element
-		where element_type = 'Process'
-		and odf_parent_id = ${vStudioProjectID}
-	</sql:query>
-	<core:forEach items="${vElements.rowsByIndex}" var="row">
-		<core:set var="vElementID">${row[0]}</core:set>
-		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vElementID: ${vElementID}"/> 
-		</core:if>
+		<sql:query escapeText="false" var="vElements">
+			select ELEMENT_ID from odf_ca_stproj_element
+			where element_type = 'Process'
+			and odf_parent_id = ${vStudioProjectID}
+		</sql:query>
+		<core:forEach items="${vElements.rowsByIndex}" var="row">
+			<core:set var="vElementID">${row[0]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vElementID: ${vElementID}"/> 
+			</core:if>
 
-		<core:set var="vFound">1</core:set>
-		<gel:parse var="vElementInstance">
-			<ProcessQuery>
-				<Filter name="code" criteria="EQUALS">${vElementID}</Filter>
-			</ProcessQuery>
-		</gel:parse>
-		<gel:set select="$v_xml_root/NikuDataBus" value="${vElementInstance}" insert="true"/>
+			<core:set var="vFound">1</core:set>
+			<gel:parse var="vElementInstance">
+				<ProcessQuery>
+					<Filter name="code" criteria="EQUALS">${vElementID}</Filter>
+				</ProcessQuery>
+			</gel:parse>
+			<gel:set select="$v_xml_root/NikuDataBus" value="${vElementInstance}" insert="true"/>
+		</core:forEach>
+
+		<core:if test="${vFound == 1}">
+			<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_07-Processes_${vStudioProjectID}.xml"/>
+			</core:if>
+
+			<!-- Calling XOG-->
+			<core:catch var="v_xog_exception">
+				<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+					<soap:message>
+						<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+							<soapenv:Header>
+								<xog:Auth>
+									<xog:SessionID>${sessionID}</xog:SessionID>
+								</xog:Auth>
+							</soapenv:Header>
+							<soapenv:Body>
+								<gel:include select="$v_xml_root/NikuDataBus"/>
+							</soapenv:Body>
+						</soapenv:Envelope>
+					</soap:message>
+				</soap:invoke>
+			</core:catch>
+				
+			<!--Generating Final OUTPUT -->
+			<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
+			<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/07-Processes.xml"/>
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:log level="debug" message="Final Output File: ${vPackagingPath}/07-Processes.xml"/> 
+			</core:if>
+		</core:if>
 	</core:forEach>
-
-	<core:if test="${vFound == 1}">
-		<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
-		<core:if test="${DebugLevel &gt; 1}">
-			<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_07-Processes_${vStudioProjectID}.xml"/>
-		</core:if>
-
-		<!-- Calling XOG-->
-		<core:catch var="v_xog_exception">
-			<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
-				<soap:message>
-					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
-						<soapenv:Header>
-							<xog:Auth>
-								<xog:SessionID>${sessionID}</xog:SessionID>
-							</xog:Auth>
-						</soapenv:Header>
-						<soapenv:Body>
-							<gel:include select="$v_xml_root/NikuDataBus"/>
-						</soapenv:Body>
-					</soapenv:Envelope>
-				</soap:message>
-			</soap:invoke>
-		</core:catch>
-			
-		<!--Genereting Final OUTPUT -->
-		<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
-		<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/07-Processes.xml"/>
-		<core:if test="${DebugLevel &gt; 0}">
-			<gel:log level="debug" message="Final Output File: ${vPackagingPath}/07-Processes.xml"/> 
-		</core:if>
-	</core:if>
 </gel:script>

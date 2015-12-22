@@ -50,7 +50,7 @@
 
 	<core:if test="${vFileName != null}">
 		<util:available file="${vFileName}" >
-			<util:properties escapeText="false" file="${vFileName}" />
+			<util:properties escapeText="false" file="${vFileName}" var="vZipProperties" />
 			<core:if test="${DebugLevel &gt; 0}">
 				<gel:log level="debug" message="Loaded: ${vFileName}"/> 
 			</core:if>
@@ -58,18 +58,19 @@
 	</core:if>
 
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="Building ZIP file: ${zip_file_name}"/> 
+		<gel:log level="debug" message="Building ZIP file: ${vZipProperties.getProperty('zip_file_name')}"/> 
+		<gel:log level="debug" message="with these contents: ${vZipProperties.getProperty('zip_file_list')}"/> 
 	</core:if>
 
 	<core:new className="java.io.FileOutputStream" var="fos" >
-		<core:arg type="java.lang.String" value="${zip_file_name}" />
+		<core:arg type="java.lang.String" value="${vZipProperties.getProperty('zip_file_name')}" />
 	</core:new>
 
 	<core:new className="java.util.zip.ZipOutputStream" var="out" >
 		<core:arg type="java.io.FileOutputStream" value="${fos}" />
 	</core:new>
 
-	<core:forEach items="${zip_file_list}" var="thisFile">
+	<core:forEach items="${vZipProperties.getProperty('zip_file_list')}" var="thisFile">
 
 		<util:file name="${thisFile}" var="filesize" />
 	
