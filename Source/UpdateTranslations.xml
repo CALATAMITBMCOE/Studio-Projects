@@ -40,7 +40,7 @@
 		
 		<sql:update>
 			update cmn_captions_nls 
-			set name = '${vCaptionName}', description= '${vCaptionDesc}'
+			set name = '${vCaptionName}', description= '${vCaptionDesc}', last_updated_date = sysdate
 			where id = ${vCaptionIntID}
 		</sql:update>
 	</core:forEach>

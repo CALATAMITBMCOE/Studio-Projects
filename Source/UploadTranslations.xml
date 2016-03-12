@@ -120,10 +120,10 @@
 				<gel:log level="debug" message="vCaptionIntID:${vCaptionIntID}. vCaptionName:${vCaptionName}. vCaptionDesc:${vCaptionDesc}."/>
 			</core:if>
 
-			<core:if test="${vCaptionIntID != 'InternalID'}">
+			<core:if test="${(vCaptionIntID != 'InternalID') and (vCaptionIntID !='')}">
 				<sql:update>
 					update odf_ca_stproj_elem_xlat
-					set caption_name = '${vCaptionName}', caption_descr = '${vCaptionDesc}'
+					set caption_name = '${vCaptionName}', caption_descr = '${vCaptionDesc}', last_updated_date = sysdate
 					where id = ${vCaptionIntID}
 				</sql:update>	
 			</core:if>
