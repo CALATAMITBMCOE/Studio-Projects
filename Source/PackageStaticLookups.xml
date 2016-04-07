@@ -1,9 +1,9 @@
-<gel:script 
- xmlns:core="jelly:core" 
+<gel:script
+ xmlns:core="jelly:core"
     xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
     xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
     xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
-    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"
     xmlns:sql="jelly:sql"
     xmlns:xog="http://www.niku.com/xog"
     xmlns:xsd="http://www.w3.org/2001/XMLSchema"
@@ -11,21 +11,21 @@
     xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
     xmlns:util="jelly:util"
     xmlns:q="http://www.niku.com/xog/Query">
-	
+
 	<core:set var="vFound">0</core:set>
-	
+
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
 	<core:if test="${DebugLevel &gt; 0}">
 		<gel:log level="debug" message="Start Script"/>
-		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
-		<gel:log level="debug" message=">>Persisted XOG URL  : ${XOGURL}"/> 
-		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/> 
-		<gel:log level="debug" message=">>Persisted SessionID: ${sessionID}"/> 
-		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
+		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/>
+		<gel:log level="debug" message=">>Persisted XOG URL  : ${XOGURL}"/>
+		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/>
+		<gel:log level="debug" message=">>Persisted SessionID: ${sessionID}"/>
+		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/>
 	</core:if>
 
     <gel:setDataSource dbId="Niku"/>
-	
+
 	<!-- This is the XML Root Document-->
 	<gel:parse var="v_xml_root">
 		<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
@@ -35,31 +35,34 @@
 			</Header>
 		</NikuDataBus>
 	</gel:parse>
-			
+
 	<sql:query escapeText="false" var="vProject">
-		select PACKAGING_PATH from odf_ca_stproj_project
+		select PACKAGING_PATH, Partition_code, code from odf_ca_stproj_project
 		Where id = ${vStudioProjectID}
 	</sql:query>
 	<core:forEach items="${vProject.rowsByIndex}" var="row">
-		<core:set var="vPackagingPath">${row[0]}</core:set>
+    <core:set var="vPackagingPath">${row[0]}</core:set>
+    <core:set var="vStudio_Part">${row[1]}</core:set>
+    <core:set var="vStudio_Code">${row[2]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
+			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/>
 		</core:if>
 	</core:forEach>
-			
+
 	<sql:query escapeText="false" var="vElements">
-		select ELEMENT_ID from odf_ca_stproj_element
+		select ELEMENT_ID,code from odf_ca_stproj_element
 		where element_type = 'StaticLookup'
 		and odf_parent_id = ${vStudioProjectID}
 	</sql:query>
 	<core:forEach items="${vElements.rowsByIndex}" var="row">
-		<core:set var="vElementID">${row[0]}</core:set>
+    <core:set var="vElementID">${row[0]}</core:set>
+    <core:set var="vElementCode">${row[1]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vElementID: ${vElementID}"/> 
+			<gel:log level="debug" message="vElementID: ${vElementID}"/>
 		</core:if>
 
 		<core:set var="vFound">1</core:set>
-				
+
 		<gel:parse var="vElementInstance">
 			<LookupQuery>
 				<Filter name="code" criteria="EQUALS">${vElementID}</Filter>
@@ -97,20 +100,60 @@
 			<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_contentPack.xsd">
 				<Header action="write" externalSource="NIKU" objectType="contentPack" version="13.0.0.6982"/>
 				<contentPack update="true"/>
-			</NikuDataBus>	
+			</NikuDataBus>
 		</gel:parse>
 		<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/lookups" var="vFinalLookups"/>
 		<gel:set select="$v_xml_final/NikuDataBus/contentPack" value="${vFinalLookups}" insert="true"/>
-		
+
 		<!--Generating Final OUTPUT -->
 		<!--gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/-->
 		<gel:set select="$v_xml_final/NikuDataBus" var="vFinalOutput"/>
 		<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/01-StaticLookup.xml"/>
+
+    <!-- Insertinf File REference for Installation -->
+    <core:catch var="v_xog_exception">
+			<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+				<soap:message>
+					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+						<soapenv:Header>
+							<xog:Auth>
+								<xog:SessionID>${sessionID}</xog:SessionID>
+							</xog:Auth>
+						</soapenv:Header>
+						<soapenv:Body>
+              <NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
+                <Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
+                <customObjectInstances objectCode="stproj_file">
+                  <instance
+                    instanceCode="${vStudio_Code}-01"
+                    objectCode="stproj_file"
+                    parentInstanceCode="${vProjectCode}" parentObjectCode="stproj_project">
+                    <CustomInformation>
+                      <ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+                      <ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+                      <ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+                      <ColumnValue name="name">${vStudio_Code}-01</ColumnValue>
+                      <ColumnValue name="code">${vStudio_Code}-01</ColumnValue>
+                      <ColumnValue name="sort_order">1</ColumnValue>
+                      <ColumnValue name="filename">01-StaticLookup.xml</ColumnValue>
+                      <ColumnValue name="output_filename">01-StaticLookup_out.xml</ColumnValue>
+                      <ColumnValue name="is_demo">0</ColumnValue>
+                      <ColumnValue name="element_type">StaticLookup</ColumnValue>
+                      <ColumnValue name="data_reference">${vElementCode}</ColumnValue>
+                      </CustomInformation>
+                    <OBSAssocs completed="false"/>
+                  </instance>
+                </customObjectInstances>
+              </NikuDataBus>
+            </soapenv:Body>
+          </soapenv:Envelope>
+        </soap:message>
+      </soap:invoke>
+    </core:catch>
+
 		<core:if test="${DebugLevel &gt; 0}">
-			<gel:log level="debug" message="Final Output File: ${vPackagingPath}\01-StaticLookup.xml"/> 
+			<gel:log level="debug" message="Final Output File: ${vPackagingPath}\01-StaticLookup.xml"/>
 		</core:if>
 	</core:if>
-	
+
 </gel:script>
-
-
