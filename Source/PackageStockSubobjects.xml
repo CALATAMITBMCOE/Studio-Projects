@@ -17,22 +17,27 @@
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
 	<core:if test="${DebugLevel &gt; 0}">
 		<gel:log level="debug" message="Start Script"/>
-		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/>
-		<gel:log level="debug" message=">>Persisted XOG URL  : ${XOGURL}"/>
-		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/>
-		<gel:log level="debug" message=">>Persisted SessionID: ${sessionID}"/>
-		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/>
+		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="debug" message=">>Persisted XOG URL   	: ${XOGURL}"/> 
+		<gel:log level="debug" message=">>Persisted LOG Folder	: ${XOGlogFolder}"/> 
+		<gel:log level="debug" message=">>Persisted WEB Folder	: ${XOGwebFolder}"/> 
+		<gel:log level="debug" message=">>Persisted WEB Path	: ${XOGwebPath}"/> 
+		<gel:log level="debug" message=">>Persisted DB Vendor	: ${dbVendor}"/> 
+		<gel:log level="debug" message=">>Persisted SessionID 	: ${sessionID}"/> 
+		<gel:log level="debug" message=">>Persisted DebugLevel	: ${DebugLevel}"/> 
 	</core:if>
 
     <gel:setDataSource dbId="Niku"/>
 
 	<sql:query escapeText="false" var="vProject">
-		select PACKAGING_PATH, INITIALS from odf_ca_stproj_project
+		select PACKAGING_PATH, Partition_code, Code, INITIALS from odf_ca_stproj_project
 		Where id = ${vStudioProjectID}
 	</sql:query>
 	<core:forEach items="${vProject.rowsByIndex}" var="row">
 		<core:set var="vPackagingPath">${row[0]}</core:set>
-		<core:set var="vProjectInitials">${row[1]}</core:set>
+		<core:set var="vStudio_Part">${row[1]}</core:set>
+		<core:set var="vStudio_Code">${row[2]}</core:set>
+		<core:set var="vProjectInitials">${row[3]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/>
 		</core:if>
@@ -52,7 +57,7 @@
 
 		<gel:parse var="v_xml_root">
 			<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
-				<Header version="8.0" action="read" objectType="contentPack" externalSource="NIKU">
+				<Header version="14" action="read" objectType="contentPack" externalSource="NIKU">
 					<args contentType="object" name="order_by_1" value="code"/>
 					<args name="singleContentType" value="object"/>
 					<args name="no_dependencies" value="true"/>
@@ -67,9 +72,9 @@
 		</gel:parse>
 
 		<gel:set select="$v_xml_root/NikuDataBus" value="${vElementInstance}" insert="true"/>
-		<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_06B-StockSubObject_${vObjectCode}_${vStudioProjectID}.xml"/>
+			<gel:serialize var="${v_xml_root}" fileName="${XOGwebFolder}/XOGREAD_141-StockSubObject_${vObjectCode}_${vStudioProjectID}.xml"/>
+			<gel:log level="debug" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_141-StockSubObject_${vObjectCode}_${vStudioProjectID}.xml"/>
 		</core:if>
 
 		<!-- Calling XOG-->
@@ -90,9 +95,9 @@
 			</soap:invoke>
 		</core:catch>
 
-		<!--Serializing Full Master Object for Debugging-->
-		<core:if test="${DebugLevel &gt; 0}">
-			<gel:serialize var="${runresult}" fileName="${XOGlogFolder}/XOGWRITE_06B-StockSubObject_Full_${vObjectCode}_${vStudioProjectID}.xml"/>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:serialize var="${runresult}" fileName="${XOGlogFolder}/XOGWRITE_141-StockSubObject_Full_${vObjectCode}_${vStudioProjectID}.xml"/>
+			<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_141-StockSubObject_Full_${vObjectCode}_${vStudioProjectID}.xml"/>
 		</core:if>
 
 		<!-- Preparing New Master Instance ONLY with Custom Information-->
@@ -117,7 +122,8 @@
 				<gel:log level="debug" message="Found Correct SubObject:${vSubObjectCode}."/>
 				<gel:set select="$vSubObject" var="vCorrectSubObject"/>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:serialize var="${vCorrectSubObject}" fileName="${XOGlogFolder}/XOGWRITE_06B-StockSubObject_${vObjectCode}_${vStudioProjectID}.xml"/>
+					<gel:serialize var="${vCorrectSubObject}" fileName="${XOGlogFolder}/XOGWRITE_141-StockSubObject_${vObjectCode}_${vStudioProjectID}.xml"/>
+					<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_141-StockSubObject_${vObjectCode}_${vStudioProjectID}.xml"/>
 				</core:if>
 			</core:if>
 		</gel:forEach>
@@ -274,9 +280,55 @@
 		<gel:set select="$v_xml_new/NikuDataBus/contentPack/objects" value="${vMasterInstance}" insert="true"/>
 
 		<!--Genereting Final OUTPUT -->
-		<gel:serialize var="${v_xml_new}" fileName="${vPackagingPath}/06B-StockSubObject_${vObjectCode}.xml"/>
+		<gel:serialize var="${v_xml_new}" fileName="${vPackagingPath}/141-StockSubObject_${vObjectCode}.xml"/>
+		<!-- Inserting File Reference for Installation -->
+		<core:catch var="v_xog_exception">
+			<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+				<soap:message>
+					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+						<soapenv:Header>
+							<xog:Auth>
+								<xog:SessionID>${sessionID}</xog:SessionID>
+							</xog:Auth>
+						</soapenv:Header>
+						<soapenv:Body>
+							<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
+								<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
+								<customObjectInstances objectCode="stproj_file">
+									<instance
+											instanceCode="${vStudio_Code}-141"
+											objectCode="stproj_file"
+											parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
+										<CustomInformation>
+											<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
+											<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
+											<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+											<ColumnValue name="name">${vStudio_Code}-141</ColumnValue>
+											<ColumnValue name="code">${vStudio_Code}-141</ColumnValue>
+											<ColumnValue name="sort_order">141</ColumnValue>
+											<ColumnValue name="filename">141-StockSubObject_${vObjectCode}.xml</ColumnValue>
+											<ColumnValue name="output_filename">141-StockSubObject_${vObjectCode}_out.xml</ColumnValue>
+											<ColumnValue name="is_demo">0</ColumnValue>
+											<ColumnValue name="is_data">0</ColumnValue>
+											<ColumnValue name="element_type">StockSubObject</ColumnValue>
+											<ColumnValue name="data_reference">${vObjectCode}</ColumnValue>
+										</CustomInformation>
+										<OBSAssocs completed="false"/>
+									</instance>
+								</customObjectInstances>
+							</NikuDataBus>
+						</soapenv:Body>
+					</soapenv:Envelope>
+				</soap:message>
+			</soap:invoke>
+		</core:catch>
+
+		<core:if test="${v_xog_exception != null}">
+			<gel:log level="warning" message="Caught Exception: ${v_xog_exception}."/>
+		</core:if>
+		
 		<core:if test="${DebugLevel &gt; 0}">
-			<gel:log level="debug" message="Final Output File: ${vPackagingPath}\06B-StockSubObject_${vObjectCode}.xml"/>
+			<gel:log level="debug" message="Final Output File: ${vPackagingPath}\141-StockSubObject_${vObjectCode}.xml"/>
 		</core:if>
 	</core:forEach>
 

@@ -51,9 +51,6 @@
 	</core:if>
 	
 	<core:set var="XOGlogFolder" value="${vInstallDir}/logs"/>
-	<core:if test="${DebugLevel &gt; 1}">
-		<core:set var="XOGwebFolder" value="${vInstallDir}/webroot"/>
-	</core:if>
 	<core:set var="schedulerUrl" value="${config.getProperties().getWebServer().getSchedulerUrl()}"/>
 	
 	<core:if test="${DebugLevel &gt; 1}">
@@ -65,19 +62,22 @@
 	<!-- Tests if Instance 0 is app - then gets instance 0 data -->
 	<core:if test="${WebServerid == 'app'}">
         <core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(0).getEntryUrl()}"/>
+        <core:set var="entryUrlPort" value="${config.getProperties().getWebServer().getWebServerInstance(0).getPort()}"/>
 	</core:if>
 	<!-- Tests if Instance 0 is nsa - then gets instance 1 data -->
 	<core:if test="${WebServerid == 'nsa'}">
         <core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(1).getEntryUrl()}"/>
+        <core:set var="entryUrlPort" value="${config.getProperties().getWebServer().getWebServerInstance(1).getPort()}"/>
 	</core:if>
 
 	<core:if test="${DebugLevel &gt; 1}">
-		<gel:log level="debug" message="WebServerid: ${WebServerid}"/> 
-		<gel:log level="debug" message="entryUrl: ${entryUrl}"/> 
+		<gel:log level="debug" message="WebServerid	: ${WebServerid}"/> 
+		<gel:log level="debug" message="entryUrl	: ${entryUrl}"/> 
+		<gel:log level="debug" message="entryUrlPort: ${entryUrlPort}"/> 
 	</core:if>
 
 	<!-- Not sure whether I should use entryUrl -->
-	<core:set var="XOGURL" value="${entryUrl}"/>
+	<core:set var="XOGURL" value="${entryUrl}:${entryUrlPort}"/>
 	<core:if test="${DebugLevel &gt; 0}">
 		<gel:log level="debug" message="XOGURL: ${XOGURL}"/> 
 		<gel:log level="debug" message="XOGlogFolder: ${XOGlogFolder}"/> 
@@ -123,11 +123,6 @@
 			<core:if test="${DebugLevel &gt; 1}">
 				<gel:log level="debug" message="[XOG] XOG Login Successful. ${sessionID}."/> 
 			</core:if>
-			<gel:persist var="XOGURL" value="${XOGURL}" scope="INSTANCE"/>
-			<gel:persist var="XOGlogFolder" value="${XOGlogFolder}" scope="INSTANCE"/>
-			<gel:persist var="XOGwebFolder" value="${XOGwebFolder}" scope="INSTANCE"/>
-			<gel:persist var="sessionID" value="${sessionID}" scope="INSTANCE"/>
-			<gel:persist var="DebugLevel" value="${DebugLevel}" scope="INSTANCE"/>
 	
 			<sql:query escapeText="false" var="vProject">
 				select SP.PROJECT_CODE, SP.PACKAGING_PATH, SP.OUT_FOLDER_PATH, SP.XOG_HOME, CI.XOG_URL, CI.XOG_USERNAME, CI.XOG_PASSWORD, CI.XOG_PORT, SP.ST_INCLUDE, nvl(SP.PUBLISH,0)
@@ -160,6 +155,42 @@
 				</core:if>
 			</core:forEach>
 
+			<!-- Temp Log Files available over the web -->
+			<core:set var="logs_dir_to_create" value="${vInstallDir}/webroot/stproj_logs/${vProjectCode}"/>
+			<util:file name="${logs_dir_to_create}" var="logsfoldervar" />
+			<core:set var="FolderExists" value="${logsfoldervar.exists()}"/>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="FolderExists      : ${FolderExists}"/>
+			</core:if>
+			<!-- if default folder already exists, it must be deleted -->
+			<core:if test="${FolderExists == true}">
+				<core:set var="logsListOfFiles" value="${logsfoldervar.listFiles()}" />
+				<!-- First, delete all files -->
+				<core:forEach items="${logsListOfFiles}" var="row">
+					<core:set var="vFile">${row}</core:set>
+					<core:if test="${DebugLevel &gt; 1}">
+						<gel:log level="debug" message="vFile      : ${vFile}"/>
+					</core:if>
+					<util:file name="${vFile}" var="filevar" />
+					<core:set var="deleteDone" value="${filevar.delete()}" />
+					<core:if test="${DebugLevel &gt; 1}">
+						<gel:log level="debug" message="deleteDone for File : ${deleteDone}"/>
+					</core:if>
+				</core:forEach>
+				<!-- Then delete folder -->
+				<core:set var="deleteDone" value="${logsfoldervar.delete()}" />
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="deleteDone for Folder : ${deleteDone}"/>
+				</core:if>
+			</core:if>
+			<!-- Then create the new folder mkdirs will create all intermediate parent folders  -->
+			<core:set var="CreateLogsDirDone" value="${logsfoldervar.mkdirs()}" />
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="CreateLogsDirDone : ${CreateLogsDirDone}"/>
+			</core:if>				
+			<core:set var="XOGwebFolder" value="${logs_dir_to_create}"/>
+			<core:set var="XOGwebPath" value="${entryUrl}/niku/stproj_logs/${vProjectCode}"/>
+			
 			<!-- vPackagingPath has been specified === create it -->
 			<core:if test="${vPackagingPath!=''}">
 				<core:set var="dir_to_create">${vPackagingPath}</core:set>
@@ -217,6 +248,13 @@
 				<util:file name="${publishdir}" var="newpubdir" />
 				<core:set var="publishdirmade" value="${newpubdir.mkdirs()}" />
 			</core:if>
+			<gel:persist var="XOGURL" value="${XOGURL}" scope="INSTANCE"/>
+			<gel:persist var="XOGlogFolder" value="${XOGlogFolder}" scope="INSTANCE"/>
+			<gel:persist var="XOGwebFolder" value="${XOGwebFolder}" scope="INSTANCE"/>
+			<gel:persist var="XOGwebPath" value="${XOGwebPath}" scope="INSTANCE"/>
+			<gel:persist var="sessionID" value="${sessionID}" scope="INSTANCE"/>
+			<gel:persist var="DebugLevel" value="${DebugLevel}" scope="INSTANCE"/>
+			<gel:persist var="dbVendor" value="${dbVendor}" scope="INSTANCE"/>
 		</core:otherwise>
     </core:choose>		
 </gel:script>

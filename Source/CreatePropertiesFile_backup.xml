@@ -1,0 +1,576 @@
+<gel:script 
+ xmlns:core="jelly:core" 
+    xmlns:gel="jelly:com.niku.union.gel.GELTagLibrary"
+    xmlns:soap="jelly:com.niku.union.gel.SOAPTagLibrary"
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/"	    
+    xmlns:sql="jelly:sql"
+    xmlns:xog="http://www.niku.com/xog"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:file="jelly:com.niku.union.gel.FileTagLibrary"
+    xmlns:util="jelly:util"
+	xmlns:ant="jelly:ant" 
+    xmlns:q="http://www.niku.com/xog/Query">
+	
+	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
+	
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Start Script"/>
+		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="debug" message=">>Persisted XOG URL  : ${XOGURL}"/> 
+		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/> 
+		<gel:log level="debug" message=">>Persisted SessionID: ${sessionID}"/> 
+		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
+	</core:if>
+
+    <gel:setDataSource dbId="Niku"/>
+	
+	<sql:query escapeText="false" var="vProject">
+		select SP.PROJECT_CODE, SP.PACKAGING_PATH, SP.ST_EXPORT, SP.INCLUDE_CM
+		from odf_ca_stproj_project SP
+		Where SP.id = ${vStudioProjectID}
+	</sql:query>
+	<core:forEach items="${vProject.rowsByIndex}" var="row">
+		<core:set var="vProjectCode">${row[0]}</core:set>
+		<core:set var="vPackagingPathInput">${row[1]}</core:set>
+		<core:set var="vExport">${row[2]}</core:set>
+		<core:set var="vIncludeCM">${row[3]}</core:set>
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:log level="debug" message="vProjectCode  : ${vProjectCode}"/> 
+			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
+			<gel:log level="debug" message="vExport       : ${vExport}"/> 
+			<gel:log level="debug" message="vIncludeCM    : ${vIncludeCM}"/> 
+		</core:if>
+	</core:forEach>
+
+	<core:new className="java.lang.String" var="InputString" >
+		<core:arg type="java.lang.String" value="${vPackagingPathInput}" />
+	</core:new>
+
+	<core:invoke var="vPackagingPath" on="${InputString}" method="replace">
+		<core:arg type="char" value="\"/>
+		<core:arg type="char" value="/"/>
+	</core:invoke>
+
+	<core:set var="vFileName">${vPackagingPath}/${vProjectCode}-build.properties</core:set>
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="Creating File: ${vFileName}"/> 
+	</core:if>
+	
+	<core:invokeStatic var="config" className="com.niku.union.config.ConfigurationManager" method="getInstance"/>
+	<core:set var="vInstallDirInput" value="${config.getProperties().getDirectories().getInstallDir()}"/>
+	
+	<core:new className="java.lang.String" var="InputString" >
+		<core:arg type="java.lang.String" value="${vInstallDirInput}" />
+	</core:new>
+
+	<core:invoke var="vInstallDir" on="${InputString}" method="replace">
+		<core:arg type="char" value="\"/>
+		<core:arg type="char" value="/"/>
+	</core:invoke>
+
+	<core:set var="publishdir">${vInstallDir}/webroot/StudioPackages/${vProjectCode}</core:set>
+	<core:set var="vZipName">${publishdir}/${vProjectCode}.zip</core:set>
+	<core:if test="${DebugLevel &gt; 0}">
+		<gel:log level="debug" message="vZipName: ${vZipName}"/> 
+	</core:if>
+
+	<file:writeFile fileName="${vFileName}" delimiter="" embedded="0">
+		<core:set var="vLine">zip_file_name=${vZipName}</core:set>
+		<file:line>
+			<file:column value="${vLine}"/>
+		</file:line>
+
+		<core:set var="vLine">zip_file_list=\</core:set>
+		<file:line>
+			<file:column value="${vLine}"/>
+		</file:line>
+
+		<core:new className="java.io.File" var="jPath">
+			<core:arg type="java.lang.String" value="${vPackagingPath}" />
+		</core:new>
+		<core:invoke var="jFileList" on="${jPath}" method="listFiles"/>
+		<core:forEach items="${jFileList}" var="vFile">
+			<core:invoke var="jType" on="${vFile}" method="isFile"/>
+			<core:if test="${jType}">
+				<core:set var="vLine">${vPackagingPath}/${vFile},\</core:set>
+				<file:line>
+					<file:column value="${vLine}"/>
+				</file:line>
+			</core:if>
+		</core:forEach>
+
+
+		<core:if test="${vIncludeCM}">
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'StaticLookup'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/01-StaticLookup.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select ELEMENT_ID, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'MasterObject' group by ELEMENT_ID
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vObjCode">${row[0]}</core:set>
+				<core:set var="vTest">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vObjCode: ${vObjCode}"/> 
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/02-Objects_${vObjCode}.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select MASTER_OBJECT, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'SubObject' group by MASTER_OBJECT
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vMaster">${row[0]}</core:set>
+				<core:set var="vTest">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vMaster: ${vMaster}"/> 
+					<gel:log level="debug" message="vTest  : ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/03-SubObjects_${vMaster}.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'DynamicLookup'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/04-DynamicLookup.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type in ('MasterObject','SubObject')
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/05-Views.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+			
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select ELEMENT_ID, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'StockObject' group by ELEMENT_ID
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vMaster">${row[0]}</core:set>
+				<core:set var="vTest">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/06A-StockObject_${vMaster}.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select ELEMENT_ID, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'StockSubObject' group by ELEMENT_ID
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vMaster">${row[0]}</core:set>
+				<core:set var="vTest">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/06B-StockSubObject_${vMaster}.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select master_object, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'StockObjectCustAttr' group by master_object
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vMaster">${row[0]}</core:set>
+				<core:set var="vTest">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/06C-StockObjectCustomAttributes_${vMaster}.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTOORDER
+				from odf_ca_stproj_element E 
+					inner join ODF_VIEWS OV on OV.object_code = E.element_id 
+					left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
+				where element_type in ('StockObject','StockSubObject')
+				and odf_parent_id = ${vStudioProjectID}
+				and ov.view_type in ('property','filter')
+				order by E.ELEMENT_ID, VIEWTYPE, PARTOORDER, OV.PARTITION_CODE
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vObjectCode">${row[0]}</core:set>
+				<core:set var="vViewCode">${row[1]}</core:set>
+				<core:set var="vPartitionCode">${row[2]}</core:set>
+				<core:set var="vPartitionOrdr">${row[3]}</core:set>
+				<core:set var="vTest">1</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTOORDER
+				from odf_ca_stproj_element E 
+					inner join ODF_VIEWS OV on OV.object_code = E.element_id 
+					left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
+				where element_type = 'StockObjectListView'
+				and odf_parent_id = ${vStudioProjectID}
+				and ov.view_type = 'filter'
+				and ((e.st_elem_view_part = OV.PARTITION_CODE) or (e.st_elem_view_part is null))
+				order by E.ELEMENT_ID, VIEWTYPE, PARTOORDER, OV.PARTITION_CODE
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vObjectCode">${row[0]}</core:set>
+				<core:set var="vViewCode">${row[1]}</core:set>
+				<core:set var="vPartitionCode">${row[2]}</core:set>
+				<core:set var="vPartitionOrdr">${row[3]}</core:set>
+				<core:set var="vTest">1</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+	`
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTOORDER
+				from odf_ca_stproj_element E 
+					inner join ODF_VIEWS OV on OV.object_code = E.element_id 
+					left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
+				where element_type = 'StockObjectPropertiesView'
+				and odf_parent_id = ${vStudioProjectID}
+				and ov.view_type = 'property'
+				and ((e.st_elem_view_part = OV.PARTITION_CODE) or (e.st_elem_view_part is null))
+				order by E.ELEMENT_ID, VIEWTYPE, PARTOORDER, OV.PARTITION_CODE
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vObjectCode">${row[0]}</core:set>
+				<core:set var="vViewCode">${row[1]}</core:set>
+				<core:set var="vPartitionCode">${row[2]}</core:set>
+				<core:set var="vPartitionOrdr">${row[3]}</core:set>
+				<core:set var="vTest">1</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Process'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/07-Processes.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Query'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/08-Queries.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Portlet'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/09-Portlets.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Page'
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vTest">${row[0]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/10-Pages.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+		</core:if>
+		
+		<core:set var="vTest">0</core:set>
+		<sql:query var="vCount">
+			select element_id, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Group' group by element_id
+		</sql:query>
+		<core:forEach items="${vCount.rowsByIndex}" var="row">
+			<core:set var="vGroupCode">${row[0]}</core:set>
+			<core:set var="vTest">${row[1]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vTest: ${vTest}"/> 
+			</core:if>
+			<core:if test="${vTest &gt; 0}">
+				<core:set var="vLine">${vPackagingPath}/11-Groups_${vGroupCode}.xml,\</core:set>
+				<file:line>
+					<file:column value="${vLine}"/>
+				</file:line>
+			</core:if>
+		</core:forEach>
+
+		<core:set var="vTest">0</core:set>
+		<sql:query var="vCount">
+			select count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'Menu'
+		</sql:query>
+		<core:forEach items="${vCount.rowsByIndex}" var="row">
+			<core:set var="vTest">${row[0]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vTest: ${vTest}"/> 
+			</core:if>
+			<core:if test="${vTest &gt; 0}">
+				<core:set var="vLine">${vPackagingPath}/12-Menu.xml,\</core:set>
+				<file:line>
+					<file:column value="${vLine}"/>
+				</file:line>
+			</core:if>
+		</core:forEach>
+
+		
+		<core:set var="vTest">0</core:set>
+		<sql:query var="vCount">
+			select element_id, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'obs' group by element_id
+		</sql:query>
+		<core:forEach items="${vCount.rowsByIndex}" var="row">
+			<core:set var="vOBSCode">${row[0]}</core:set>
+			<core:set var="vTest">${row[1]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vTest: ${vTest}"/> 
+			</core:if>
+			<core:if test="${vTest &gt; 0}">
+				<core:set var="vLine">${vPackagingPath}/13-OBS_${vOBSCode}.xml,\</core:set>
+				<file:line>
+					<file:column value="${vLine}"/>
+				</file:line>
+			</core:if>
+		</core:forEach>
+		
+		<core:set var="vTest">0</core:set>
+		<sql:query var="vCount">
+			select element_id, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'uiTheme' group by element_id
+		</sql:query>
+		<core:forEach items="${vCount.rowsByIndex}" var="row">
+			<core:set var="vUITheme">${row[0]}</core:set>
+			<core:set var="vTest">${row[1]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vTest: ${vTest}"/> 
+			</core:if>
+			<core:if test="${vTest &gt; 0}">
+				<core:set var="vLine">${vPackagingPath}/14-UITheme_${vUITheme}.xml,\</core:set>
+				<file:line>
+					<file:column value="${vLine}"/>
+				</file:line>
+			</core:if>
+		</core:forEach>
+
+		<core:if test="${vIncludeCM}">
+			<core:set var="vTest">0</core:set>
+			<sql:query var="vCount">
+				select ELEMENT_ID, count(*) from odf_ca_stproj_element where ODF_PARENT_ID = ${vStudioProjectID} and element_type = 'MasterObject' group by ELEMENT_ID
+			</sql:query>
+			<core:forEach items="${vCount.rowsByIndex}" var="row">
+				<core:set var="vObjCode">${row[0]}</core:set>
+				<core:set var="vTest">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vObjCode: ${vObjCode}"/> 
+					<gel:log level="debug" message="vTest: ${vTest}"/> 
+				</core:if>
+				<core:if test="${vTest &gt; 0}">
+					<core:set var="vLine">${vPackagingPath}/15-Objects_${vObjCode}.xml,\</core:set>
+					<file:line>
+						<file:column value="${vLine}"/>
+					</file:line>
+				</core:if>
+			</core:forEach>
+		</core:if>
+		
+		<core:set var="vTest">0</core:set>
+		<sql:query var="vCount">
+			select data_object_type, object_order, count(*) from odf_ca_stproj_data where ODF_PARENT_ID = ${vStudioProjectID} and data_type = 'Seed'
+			group by data_object_type, object_order
+			order by object_order, data_object_type
+		</sql:query>
+		<core:forEach items="${vCount.rowsByIndex}" var="row">
+			<core:set var="vObject">${row[0]}</core:set>
+			<core:set var="vOrder">${row[1]}</core:set>
+			<core:set var="vTest">${row[2]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vObject: ${vObject}  vOrder: ${vOrder}   vTest: ${vTest}"/> 
+			</core:if>
+			<core:if test="${vTest &gt; 0}">
+				<core:set var="vLine">${vPackagingPath}/60-SeedData_${vObject}_${vOrder}.xml,\</core:set>
+				<file:line>
+					<file:column value="${vLine}"/>
+				</file:line>
+			</core:if>
+		</core:forEach>
+
+		<core:set var="vTest">0</core:set>
+		<sql:query var="vCount">
+			select data_object_type, object_order, count(*) from odf_ca_stproj_data where ODF_PARENT_ID = ${vStudioProjectID} and data_type = 'Demo'
+			group by data_object_type, object_order
+			order by object_order, data_object_type
+		</sql:query>
+		<core:forEach items="${vCount.rowsByIndex}" var="row">
+			<core:set var="vObject">${row[0]}</core:set>
+			<core:set var="vOrder">${row[1]}</core:set>
+			<core:set var="vTest">${row[2]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vObject: ${vObject}  vOrder: ${vOrder}   vTest: ${vTest}"/> 
+			</core:if>
+			<core:if test="${vTest &gt; 0}">
+				<core:set var="vLine">${vPackagingPath}/90-DemoData_${vObject}_${vOrder}.xml,\</core:set>
+				<file:line>
+					<file:column value="${vLine}"/>
+				</file:line>
+			</core:if>
+		</core:forEach>
+		
+		<core:if test="${vExport &gt; 0}">
+			<core:set var="vLine">${vPackagingPath}/99-StudioProject.xml,\</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+		</core:if>
+
+		<core:set var="vLine">${vPackagingPath}/${vProjectCode}Install.bat,\</core:set>
+		<file:line>
+			<file:column value="${vLine}"/>
+		</file:line>
+		
+
+		<core:set var="vTest">0</core:set>
+		<sql:query var="vCount">
+			select count(*) from odf_ca_stproj_data where ODF_PARENT_ID = ${vStudioProjectID} and data_type = 'Demo'
+		</sql:query>
+		<core:forEach items="${vCount.rowsByIndex}" var="row">
+			<core:set var="vTest">${row[0]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vTest: ${vTest}"/> 
+			</core:if>
+			<core:if test="${vTest &gt; 0}">
+				<core:set var="vLine">${vPackagingPath}/${vProjectCode}Install_Demo.bat,\</core:set>
+				<file:line>
+					<file:column value="${vLine}"/>
+				</file:line>
+			</core:if>
+		</core:forEach>
+		
+		<core:set var="vLine">${vFileName}</core:set>
+		<file:line>
+			<file:column value="${vLine}"/>
+		</file:line>
+
+	</file:writeFile>
+
+</gel:script>
