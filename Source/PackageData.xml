@@ -386,7 +386,8 @@
 				<gel:set select="$v_xml_root/NikuDataBus" value="${vInstance}" insert="true"/>
 				
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
+					<gel:serialize var="${v_xml_root}" fileName="${XOGwebFolder}/XOGREAD_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
+					<gel:log level="debug" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
 				</core:if>
 					
 				<!-- Calling XOG-->
@@ -507,17 +508,13 @@
 													objectCode="stproj_file"
 													parentInstanceCode="${vStudioProjectCODE}" parentObjectCode="stproj_project">
 												<CustomInformation>
-													<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
-													<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
 													<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
 													<ColumnValue name="name">${vStudioProjectCODE}-3${vOrder}</ColumnValue>
 													<ColumnValue name="code">${vStudioProjectCODE}-3${vOrder}</ColumnValue>
 													<ColumnValue name="sort_order">3${vOrder}</ColumnValue>
 													<ColumnValue name="filename">300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}.xml</ColumnValue>
 													<ColumnValue name="output_filename">300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}_out.xml</ColumnValue>
-													<ColumnValue name="is_demo">0</ColumnValue>
-													<ColumnValue name="is_data">1</ColumnValue>
-													<ColumnValue name="element_type"></ColumnValue>
+													<ColumnValue name="element_type">seeddata</ColumnValue>
 													<ColumnValue name="data_reference">${vDataCode}</ColumnValue>
 												</CustomInformation>
 												<OBSAssocs completed="false"/>
@@ -1005,17 +1002,13 @@
 													objectCode="stproj_file"
 													parentInstanceCode="${vStudioProjectCODE}" parentObjectCode="stproj_project">
 												<CustomInformation>
-													<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
-													<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
 													<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
 													<ColumnValue name="name">${vStudioProjectCODE}-4${vOrder}</ColumnValue>
 													<ColumnValue name="code">${vStudioProjectCODE}-4${vOrder}</ColumnValue>
 													<ColumnValue name="sort_order">4${vOrder}</ColumnValue>
 													<ColumnValue name="filename">400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}.xml</ColumnValue>
 													<ColumnValue name="output_filename">400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}_out.xml</ColumnValue>
-													<ColumnValue name="is_demo">1</ColumnValue>
-													<ColumnValue name="is_data">1</ColumnValue>
-													<ColumnValue name="element_type"></ColumnValue>
+													<ColumnValue name="element_type">demodata</ColumnValue>
 													<ColumnValue name="data_reference">${vDataCode}</ColumnValue>
 												</CustomInformation>
 												<OBSAssocs completed="false"/>

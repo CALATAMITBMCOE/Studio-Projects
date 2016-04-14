@@ -90,19 +90,39 @@
 			<file:column value="${vLine}"/>
 		</file:line>
 
-		<core:new className="java.io.File" var="jPath">
-			<core:arg type="java.lang.String" value="${vPackagingPath}" />
-		</core:new>
-		<core:invoke var="jFileList" on="${jPath}" method="listFiles"/>
-		<core:forEach items="${jFileList}" var="vFile">
-			<core:invoke var="jType" on="${vFile}" method="isFile"/>
-			<core:if test="${jType}">
-				<core:set var="vLine">${vPackagingPath}/${vFile.name},\</core:set>
+		<core:set var="vIncludesDemoData" value="0"/>
+		<sql:query escapeText="false" var="vProjectFiles">
+			select filename, element_type 
+			from ODF_CA_STPROJ_FILE
+			Where ODF_PARENT_ID = ${vStudioProjectID}
+			ORDER BY sort_order
+		</sql:query>
+		<core:forEach items="${vProjectFiles.rowsByIndex}" var="row">
+			<core:set var="vFileIN">${row[0]}</core:set>
+			<core:set var="vFileType">${row[1]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="--vFileIN  : ${vFileIN}"/> 
+				<gel:log level="debug" message="--vFileType: ${vFileType}"/>
+
+				<core:if test="${vFileType == 'demodata'}">
+					<core:set var="vIncludesDemoData" value="1"/>
+				</core:if>
+ 				<core:set var="vLine">${vPackagingPath}/${vFileIN},\</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
 			</core:if>
 		</core:forEach>
+		<core:set var="vLine">${vPackagingPath}/${vProjectCode}Install.bat,\</core:set>
+		<file:line>
+			<file:column value="${vLine}"/>
+		</file:line>
+		<core:if test="${vIncludesDemoData == 1}">
+			<core:set var="vLine">${vPackagingPath}/${vProjectCode}Install_Demo.bat,\</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+		</core:if>
 
 	</file:writeFile>
 

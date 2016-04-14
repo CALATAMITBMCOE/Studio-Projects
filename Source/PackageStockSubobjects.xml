@@ -43,14 +43,16 @@
 		</core:if>
 	</core:forEach>
 
+	<core:set var="vElementCode"/>
 	<sql:query escapeText="false" var="vElements">
-		select distinct ELEMENT_ID from odf_ca_stproj_element
+		select distinct ELEMENT_ID, CODE from odf_ca_stproj_element
 		where element_type = 'StockSubObject'
 		and odf_parent_id = ${vStudioProjectID}
 	</sql:query>
 	<core:forEach items="${vElements.rowsByIndex}" var="row">
 		<!-- This is the XML Root Document-->
 		<core:set var="vObjectCode">${row[0]}</core:set>
+		<core:set var="vElementCode">${ElementCode}${row[1]},</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:log level="debug" message="vObjectCode   : ${vObjectCode}"/>
 		</core:if>
@@ -96,7 +98,7 @@
 		</core:catch>
 
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:serialize var="${runresult}" fileName="${XOGlogFolder}/XOGWRITE_141-StockSubObject_Full_${vObjectCode}_${vStudioProjectID}.xml"/>
+			<gel:serialize var="${runresult}" fileName="${XOGwebFolder}/XOGWRITE_141-StockSubObject_Full_${vObjectCode}_${vStudioProjectID}.xml"/>
 			<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_141-StockSubObject_Full_${vObjectCode}_${vStudioProjectID}.xml"/>
 		</core:if>
 
@@ -296,22 +298,18 @@
 								<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
 								<customObjectInstances objectCode="stproj_file">
 									<instance
-											instanceCode="${vStudio_Code}-141"
+											instanceCode="${vStudio_Code}-141${vElementCode}"
 											objectCode="stproj_file"
 											parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
 										<CustomInformation>
-											<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
-											<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
 											<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
-											<ColumnValue name="name">${vStudio_Code}-141</ColumnValue>
-											<ColumnValue name="code">${vStudio_Code}-141</ColumnValue>
+											<ColumnValue name="name">${vStudio_Code}-141${vObjectCode}</ColumnValue>
+											<ColumnValue name="code">${vStudio_Code}-141${vElementCode}</ColumnValue>
 											<ColumnValue name="sort_order">141</ColumnValue>
 											<ColumnValue name="filename">141-StockSubObject_${vObjectCode}.xml</ColumnValue>
 											<ColumnValue name="output_filename">141-StockSubObject_${vObjectCode}_out.xml</ColumnValue>
-											<ColumnValue name="is_demo">0</ColumnValue>
-											<ColumnValue name="is_data">0</ColumnValue>
 											<ColumnValue name="element_type">StockSubObject</ColumnValue>
-											<ColumnValue name="data_reference">${vObjectCode}</ColumnValue>
+											<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
 										</CustomInformation>
 										<OBSAssocs completed="false"/>
 									</instance>

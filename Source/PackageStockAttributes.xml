@@ -132,8 +132,9 @@
 			<gel:set select="$vMasterInstance/object" value="${vNLS}" insert="true"/>
 		</gel:forEach>
 
+		<core:set var="vElementCode"/>
 		<sql:query escapeText="false" var="vElements2">
-			select ELEMENT_ID from odf_ca_stproj_element
+			select ELEMENT_ID,CODE from odf_ca_stproj_element
 			where element_type = 'StockObjectCustAttr'
 			and odf_parent_id = ${vStudioProjectID}
 			and master_object = '${vMaster}'
@@ -141,6 +142,7 @@
 		<!-- Reading/Inserting the attributes themselves -->
 		<core:forEach items="${vElements2.rowsByIndex}" var="row">
 			<core:set var="vElementID">${row[0]}</core:set>
+			<core:set var="vElementCode">${vElementCode}${row[1]},</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
 				<gel:log level="debug" message="Generating xml for attribute vElementID   : ${vElementID}"/> 
 			</core:if>
@@ -219,22 +221,18 @@
 								<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
 								<customObjectInstances objectCode="stproj_file">
 									<instance
-											instanceCode="${vStudio_Code}-142"
+											instanceCode="${vStudio_Code}-142${vMaster}"
 											objectCode="stproj_file"
 											parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
 										<CustomInformation>
-											<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
-											<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
 											<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
-											<ColumnValue name="name">${vStudio_Code}-142</ColumnValue>
-											<ColumnValue name="code">${vStudio_Code}-142</ColumnValue>
+											<ColumnValue name="name">${vStudio_Code}-142${vMaster}</ColumnValue>
+											<ColumnValue name="code">${vStudio_Code}-142${vMaster}</ColumnValue>
 											<ColumnValue name="sort_order">142</ColumnValue>
 											<ColumnValue name="filename">142-StockObjectCustomAttributes_${vMaster}.xml</ColumnValue>
 											<ColumnValue name="output_filename">142-StockObjectCustomAttributes_${vMaster}_out.xml</ColumnValue>
-											<ColumnValue name="is_demo">0</ColumnValue>
-											<ColumnValue name="is_data">0</ColumnValue>
 											<ColumnValue name="element_type">StockObjectCustAttr</ColumnValue>
-											<ColumnValue name="data_reference">${vMaster}</ColumnValue>
+											<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
 										</CustomInformation>
 										<OBSAssocs completed="false"/>
 									</instance>
@@ -316,15 +314,16 @@
 		</core:if>
 		
 		<sql:query escapeText="false" var="vElements2">
-			select ELEMENT_ID,code from odf_ca_stproj_element
+			select ID, ELEMENT_ID,code from odf_ca_stproj_element
 			where element_type = 'StockObjectCustAttr'
 			and odf_parent_id = ${vStudioProjectID}
 			and master_object = '${vMaster}'
 		</sql:query>
 		<!-- Reading/Inserting the attributes themselves -->
 		<core:forEach items="${vElements2.rowsByIndex}" var="row">
-			<core:set var="vElementID">${row[0]}</core:set>
-			<core:set var="vElementCode">${row[1]}</core:set>
+			<core:set var="vElementIntl">${row[0]}</core:set>
+			<core:set var="vElementID">${row[1]}</core:set>
+			<core:set var="vElementCode">${row[2]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
 				<gel:log level="debug" message="Generating xml for attribute vElementID   : ${vElementID}"/> 
 			</core:if>
@@ -392,7 +391,7 @@
 				<autonumbering/>
 			</gel:parse>
 			<!-- Reading/Inserting the Attributes Autonumbering schemes -->
-			<core:set var="vElementID">${row[0]}</core:set>
+			<core:set var="vElementID">${row[1]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
 				<gel:log level="debug" message="Searching for AutoNumbering vElementID   : ${vElementID}"/> 
 			</core:if>
@@ -412,7 +411,7 @@
 			<gel:set select="$v_xml_new/NikuDataBus/contentPack/objects" value="${vMasterInstance}" insert="true"/>
 				
 			<!--Generating Final OUTPUT -->
-			<gel:serialize var="${v_xml_new}" fileName="${vPackagingPath}/143-StockObjectCustomAttributes_${vMaster}.xml"/>
+			<gel:serialize var="${v_xml_new}" fileName="${vPackagingPath}/143-StockObjectCustomAttributes_${vMaster}_${vElementID}.xml"/>
 
 			<!-- Inserting File Reference for Installation -->
 			<core:catch var="v_xog_exception">
@@ -429,20 +428,16 @@
 									<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
 									<customObjectInstances objectCode="stproj_file">
 										<instance
-												instanceCode="${vStudio_Code}-143"
+												instanceCode="${vStudio_Code}-143${vMaster}${vElementIntl}"
 												objectCode="stproj_file"
 												parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
 											<CustomInformation>
-												<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
-												<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
 												<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
-												<ColumnValue name="name">${vStudio_Code}-143</ColumnValue>
-												<ColumnValue name="code">${vStudio_Code}-143</ColumnValue>
+												<ColumnValue name="name">${vStudio_Code}-143${vMaster}</ColumnValue>
+												<ColumnValue name="code">${vStudio_Code}-143${vElementIntl}</ColumnValue>
 												<ColumnValue name="sort_order">143</ColumnValue>
-												<ColumnValue name="filename">143-StockObjectCustomAttributes_${vMaster}.xml</ColumnValue>
-												<ColumnValue name="output_filename">143-StockObjectCustomAttributes_${vMaster}_out.xml</ColumnValue>
-												<ColumnValue name="is_demo">0</ColumnValue>
-												<ColumnValue name="is_data">0</ColumnValue>
+												<ColumnValue name="filename">143-StockObjectCustomAttributes_${vMaster}_${vElementID}.xml</ColumnValue>
+												<ColumnValue name="output_filename">143-StockObjectCustomAttributes_${vMaster}_${vElementID}_out.xml</ColumnValue>
 												<ColumnValue name="element_type">StockObjectCustAttr</ColumnValue>
 												<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
 											</CustomInformation>

@@ -44,7 +44,7 @@
 
 	<!-- Packaging StockObjectViews derived from StockObjects -->
 	<sql:query escapeText="false" var="vElements">
-		select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property','property','invalid') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTOORDER
+		select distinct E.ID, E.ELEMENT_ID, E.CODE, decode(OV.VIEW_TYPE,'filter','list','property','property','invalid') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTOORDER
 		from odf_ca_stproj_element E 
 			inner join ODF_VIEWS OV on OV.object_code = E.element_id 
 			left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
@@ -55,10 +55,16 @@
 	</sql:query>
 	<core:forEach items="${vElements.rowsByIndex}" var="row">
 		<!-- This is the XML Root Document-->
-		<core:set var="vObjectCode" value="${row[0]}"/>
-		<core:set var="vViewCode" value="${row[1]}"/>
-		<core:set var="vPartitionCode" value="${row[2]}"/>
-		<core:set var="vPartitionOrdr" value="${row[3]}"/>
+		<core:set var="vElementIntl" value="${row[0]}"/>
+		<core:set var="vObjectCode" value="${row[1]}"/>
+		<core:set var="vElementCode" value="${row[2]}"/>
+		<core:set var="vViewCode" value="${row[3]}"/>
+		<core:set var="vViewLabel" value="List"/>
+		<core:if test="${vViewCode=='property'}">
+			<core:set var="vViewLabel" value="Properties"/>
+		</core:if>
+		<core:set var="vPartitionCode" value="${row[4]}"/>
+		<core:set var="vPartitionOrdr" value="${row[5]}"/>
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:log level="debug" message="vObjectCode   : ${vObjectCode}"/> 
 			<gel:log level="debug" message="vViewCode     : ${vViewCode}"/> 
@@ -126,22 +132,18 @@
 								<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
 								<customObjectInstances objectCode="stproj_file">
 									<instance
-											instanceCode="${vStudio_Code}-144"
+											instanceCode="${vStudio_Code}-144${vElementIntl}"
 											objectCode="stproj_file"
 											parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
 										<CustomInformation>
-											<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
-											<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
 											<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
-											<ColumnValue name="name">${vStudio_Code}-144</ColumnValue>
-											<ColumnValue name="code">${vStudio_Code}-144</ColumnValue>
+											<ColumnValue name="name">${vStudio_Code}-144${vObjectCode}-${vViewCode}-${vPartitionCode}</ColumnValue>
+											<ColumnValue name="code">${vStudio_Code}-144${vElementIntl}</ColumnValue>
 											<ColumnValue name="sort_order">144</ColumnValue>
 											<ColumnValue name="filename">144-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</ColumnValue>
 											<ColumnValue name="output_filename">144-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml</ColumnValue>
-											<ColumnValue name="is_demo">0</ColumnValue>
-											<ColumnValue name="is_data">0</ColumnValue>
-											<ColumnValue name="element_type">MasterObject</ColumnValue>
-											<ColumnValue name="data_reference">${vObjectCode}</ColumnValue>
+											<ColumnValue name="element_type">StockObject${vViewLabel}View</ColumnValue>
+											<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
 										</CustomInformation>
 										<OBSAssocs completed="false"/>
 									</instance>
@@ -164,9 +166,9 @@
 
 	<!-- Packaging StockObjectViews explicitly declared as Elements -->
 	<sql:query escapeText="false" var="vElements">
-		select X.ELEMENT_ID, X.VIEWTYPE, X.PARTITION_CODE, X.PARTORDER
+		select X.ID, X.ELEMENT_ID, X.CODE, X.VIEWTYPE, X.PARTITION_CODE, X.PARTORDER
 		from	
-			(select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property','property','invalid') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTORDER
+			(select distinct E.ID, E.ELEMENT_ID, E.CODE, decode(OV.VIEW_TYPE,'filter','list','property','property','invalid') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTORDER
 			from odf_ca_stproj_element E 
 				inner join ODF_VIEWS OV on OV.object_code = E.element_id 
 				left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
@@ -175,7 +177,7 @@
 			and ov.view_type = 'property'
 			and ((ov.partition_code = E.ST_ELEM_VIEW_PART) or (E.ST_ELEM_VIEW_PART is null))
 			UNION
-			select distinct E.ELEMENT_ID, decode(OV.VIEW_TYPE,'filter','list','property','property','invalid') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTORDER
+			select distinct E.ID, E.ELEMENT_ID, E.CODE, decode(OV.VIEW_TYPE,'filter','list','property','property','invalid') VIEWTYPE, OV.partition_code, nvl(P.DEPTH,0) PARTORDER
 			from odf_ca_stproj_element E 
 				inner join ODF_VIEWS OV on OV.object_code = E.element_id 
 				left outer join CMN_PARTITIONS P on P.code = OV.Partition_code
@@ -188,10 +190,16 @@
 	</sql:query>
 	<core:forEach items="${vElements.rowsByIndex}" var="row">
 		<!-- This is the XML Root Document-->
-		<core:set var="vObjectCode" value="${row[0]}"/>
-		<core:set var="vViewCode" value="${row[1]}"/>
-		<core:set var="vPartitionCode" value="${row[2]}"/>
-		<core:set var="vPartitionOrdr" value="${row[3]}"/>
+		<core:set var="vElementIntl" value="${row[0]}"/>
+		<core:set var="vObjectCode" value="${row[1]}"/>
+		<core:set var="vElementCode" value="${row[2]}"/>
+		<core:set var="vViewCode" value="${row[3]}"/>
+		<core:set var="vViewLabel" value="List"/>
+		<core:if test="${vViewCode=='property'}">
+			<core:set var="vViewLabel" value="Properties"/>
+		</core:if>
+		<core:set var="vPartitionCode" value="${row[4]}"/>
+		<core:set var="vPartitionOrdr" value="${row[5]}"/>
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:log level="debug" message="vObjectCode   : ${vObjectCode}"/> 
 			<gel:log level="debug" message="vViewCode     : ${vViewCode}"/> 
@@ -259,22 +267,18 @@
 								<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
 								<customObjectInstances objectCode="stproj_file">
 									<instance
-											instanceCode="${vStudio_Code}-145"
+											instanceCode="${vStudio_Code}-145${vElementIntl}"
 											objectCode="stproj_file"
 											parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
 										<CustomInformation>
-											<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
-											<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
 											<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
-											<ColumnValue name="name">${vStudio_Code}-145</ColumnValue>
-											<ColumnValue name="code">${vStudio_Code}-145</ColumnValue>
+											<ColumnValue name="name">${vStudio_Code}-145${vObjectCode}-${vViewCode}-${vPartitionCode}</ColumnValue>
+											<ColumnValue name="code">${vStudio_Code}-145${vElementIntl}</ColumnValue>
 											<ColumnValue name="sort_order">145</ColumnValue>
 											<ColumnValue name="filename">145-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml</ColumnValue>
 											<ColumnValue name="output_filename">145-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}_out.xml</ColumnValue>
-											<ColumnValue name="is_demo">0</ColumnValue>
-											<ColumnValue name="is_data">0</ColumnValue>
-											<ColumnValue name="element_type">MasterObject</ColumnValue>
-											<ColumnValue name="data_reference">${vObjectCode}</ColumnValue>
+											<ColumnValue name="element_type">StockObject${vViewLabel}View</ColumnValue>
+											<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
 										</CustomInformation>
 										<OBSAssocs completed="false"/>
 									</instance>

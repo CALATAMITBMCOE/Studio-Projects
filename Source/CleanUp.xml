@@ -13,7 +13,6 @@
     xmlns:q="http://www.niku.com/xog/Query">
 	
 
-	<core:set var="DebugLevel">1</core:set>
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
 
 	<core:if test="${DebugLevel &gt; 0}">

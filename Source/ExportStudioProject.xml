@@ -178,17 +178,13 @@
 												objectCode="stproj_file"
 												parentInstanceCode="${vStudioProjectCODE}" parentObjectCode="stproj_project">
 											<CustomInformation>
-												<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
-												<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
 												<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
 												<ColumnValue name="name">${vStudioProjectCODE}-500</ColumnValue>
 												<ColumnValue name="code">${vStudioProjectCODE}-500</ColumnValue>
 												<ColumnValue name="sort_order">5000</ColumnValue>
 												<ColumnValue name="filename">500-StudioProject_${inc}.xml</ColumnValue>
 												<ColumnValue name="output_filename">500-StudioProject_${inc}_out.xml</ColumnValue>
-												<ColumnValue name="is_demo">0</ColumnValue>
-												<ColumnValue name="is_data">1</ColumnValue>
-												<ColumnValue name="element_type"></ColumnValue>
+												<ColumnValue name="element_type">stproj</ColumnValue>
 												<ColumnValue name="data_reference">${vStudioProjectCODE}</ColumnValue>
 											</CustomInformation>
 											<OBSAssocs completed="false"/>

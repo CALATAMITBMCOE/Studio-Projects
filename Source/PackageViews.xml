@@ -53,6 +53,7 @@
 	</core:forEach>
 			
 	<!--Get Explicitly listed objects -->
+	<core:set var="vElementCode"/>
 	<sql:query escapeText="false" var="vElements">
 		select ELEMENT_ID, code from odf_ca_stproj_element
 		where element_type in ('MasterObject', 'SubObject')
@@ -61,7 +62,7 @@
 	</sql:query>
 	<core:forEach items="${vElements.rowsByIndex}" var="row">
 		<core:set var="vElementID">${row[0]}</core:set>
-		<core:set var="vElementCode">${row[1]}</core:set>
+		<core:set var="vElementCode">${vElementCode}${row[1]},</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:log level="debug" message="vElementID: ${vElementID}"/> 
 		</core:if>
@@ -158,7 +159,7 @@
 			<core:set var="vInstance" value="${vInstance + 1}"/>
 		</gel:forEach>
 
-		<!--Genereting Final OUTPUT -->
+		<!--Generating Final OUTPUT -->
 		<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
 		<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/130-Views.xml"/>
 		<!-- Inserting File Reference for Installation -->
@@ -180,18 +181,14 @@
 											objectCode="stproj_file"
 											parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
 										<CustomInformation>
-											<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
-											<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
 											<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
 											<ColumnValue name="name">${vStudio_Code}-130</ColumnValue>
 											<ColumnValue name="code">${vStudio_Code}-130</ColumnValue>
 											<ColumnValue name="sort_order">130</ColumnValue>
 											<ColumnValue name="filename">130-Views.xml</ColumnValue>
 											<ColumnValue name="output_filename">130-Views_out.xml</ColumnValue>
-											<ColumnValue name="is_demo">0</ColumnValue>
-											<ColumnValue name="is_data">0</ColumnValue>
-											<ColumnValue name="element_type">MasterObject</ColumnValue>
-											<ColumnValue name="data_reference">${vObjectCode}</ColumnValue>
+											<ColumnValue name="element_type">view</ColumnValue>
+											<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
 										</CustomInformation>
 										<OBSAssocs completed="false"/>
 									</instance>

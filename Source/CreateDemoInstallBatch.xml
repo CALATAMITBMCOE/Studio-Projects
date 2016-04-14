@@ -108,54 +108,25 @@
 				<file:column value="${vLine}"/>
 			</file:line>
 
-			<core:new className="java.io.File" var="jPath">
-				<core:arg type="java.lang.String" value="${vPackagingPath}" />
-			</core:new>
-			<core:invoke var="jFileList" on="${jPath}" method="listFiles"/>
-			<core:forEach items="${jFileList}" var="vFile">
-				<core:invoke var="jType" on="${vFile}" method="isFile"/>
-				
-				<core:set var="vFileIn" value="${vFile.name}"/>
-				<core:if test="${jType}">
-					<core:if test="${vFileIn.substring(0,2)!='90'}">
-						<core:invoke var="vFileOut" on="${vFileIn}" method="replace">
-							<core:arg type="char" value=".xml"/>
-							<core:arg type="char" value="_out.xml"/>
-						</core:invoke>
-						<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/${vFileOut} -input ${vInputPath}/${vFileIn}</core:set>
-						<file:line>
-							<file:column value="${vLine}"/>
-						</file:line>
-					</core:if>
-				</core:if>
-			</core:forEach>
-			<core:set var="vLine">pause</core:set>
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-			
-			
-			<core:set var="vTest">0</core:set>
-			<sql:query var="vCount">
-				select data_object_type, object_order, count(*) from odf_ca_stproj_data where ODF_PARENT_ID = ${vStudioProjectID} and data_type = 'Demo'
-				group by data_object_type, object_order
-				order by object_order, data_object_type
+			<sql:query escapeText="false" var="vProjectFiles">
+				select filename, output_filename 
+				from ODF_CA_STPROJ_FILE
+				Where ODF_PARENT_ID = ${vStudioProjectID}
+				AND ELEMENT_TYPE = 'demodata'
+				ORDER BY sort_order
 			</sql:query>
-			<core:forEach items="${vCount.rowsByIndex}" var="row">
-				<core:set var="vObject">${row[0]}</core:set>
-				<core:set var="vOrder">${row[1]}</core:set>
-				<core:set var="vTest">${row[2]}</core:set>
+			<core:forEach items="${vProjectFiles.rowsByIndex}" var="row">
+				<core:set var="vFileIN">${row[0]}</core:set>
+				<core:set var="vFileOUT">${row[1]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vObject: ${vObject}  vOrder: ${vOrder}   vTest: ${vTest}"/> 
+					<gel:log level="debug" message="--vFileIN  : ${vFileIN}"/> 
+					<gel:log level="debug" message="--vFileOUT : ${vFileOUT}"/>
 				</core:if>
-				<core:if test="${vTest &gt; 0}">
-					<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/90-DemoData_${vObject}_${vOrder}_out.xml -input ${vInputPath}/90-DemoData_${vObject}_${vOrder}.xml</core:set>
-					<file:line>
-						<file:column value="${vLine}"/>
-					</file:line>
-				</core:if>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/${vFileOUT} -input ${vInputPath}/${vFileIN}</core:set>
+				<file:line>
+					<file:column value="${vLine}"/>
+				</file:line>
 			</core:forEach>
-
 			<core:set var="vLine">pause</core:set>
 			<file:line>
 				<file:column value="${vLine}"/>

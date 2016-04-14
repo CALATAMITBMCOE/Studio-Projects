@@ -33,7 +33,7 @@
 	<!-- This is the XML Root Document-->
 	<gel:parse var="v_xml_root">
 		<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_read.xsd">
-			<Header version="8.0" action="read" objectType="contentPack" externalSource="NIKU">
+			<Header version="14" action="read" objectType="contentPack" externalSource="NIKU">
 				<args name="singleContentType" value="portlet"/>
 				<args name="no_dependencies" value="true"/>
 			</Header>
@@ -41,22 +41,26 @@
 	</gel:parse>
 			
 	<sql:query escapeText="false" var="vProject">
-		select PACKAGING_PATH from odf_ca_stproj_project
+		select PACKAGING_PATH, Partition_code, Code from odf_ca_stproj_project
 		Where id = ${vStudioProjectID}
 	</sql:query>
 	<core:forEach items="${vProject.rowsByIndex}" var="row">
 		<core:set var="vPackagingPath">${row[0]}</core:set>
+		<core:set var="vStudio_Part">${row[1]}</core:set>
+		<core:set var="vStudio_Code">${row[2]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
 		</core:if>
 			
+		<core:set var="vElementCode"/>
 		<sql:query escapeText="false" var="vElements">
-			select ELEMENT_ID from odf_ca_stproj_element
+			select ELEMENT_ID, CODE from odf_ca_stproj_element
 			where element_type = 'Portlet'
 			and odf_parent_id = ${vStudioProjectID}
 		</sql:query>
 		<core:forEach items="${vElements.rowsByIndex}" var="row">
 			<core:set var="vElementID">${row[0]}</core:set>
+			<core:set var="vElementCode">${vElementCode}${row[1]},</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
 				<gel:log level="debug" message="vElementID: ${vElementID}"/> 
 			</core:if>
@@ -72,9 +76,9 @@
 		</core:forEach>
 
 		<core:if test="${vFound == 1}">
-			<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_09-Portlets_${vStudioProjectID}.xml"/>
+				<gel:serialize var="${v_xml_root}" fileName="${XOGwebFolder}/XOGREAD_165-Portlets_${vStudioProjectID}.xml"/>
+				<gel:log level="debug" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_165-Portlets_${vStudioProjectID}.xml"/> 
 			</core:if>
 
 			<!-- Calling XOG-->
@@ -95,11 +99,53 @@
 				</soap:invoke>
 			</core:catch>
 				
-			<!--Genereting Final OUTPUT -->
+			<!--Generating Final OUTPUT -->
 			<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
-			<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/09-Portlets.xml"/>
+			<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/165-Portlets.xml"/>
+
+			<!-- Inserting File Reference for Installation -->
+			<core:catch var="v_xog_exception">
+				<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+					<soap:message>
+						<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+							<soapenv:Header>
+								<xog:Auth>
+									<xog:SessionID>${sessionID}</xog:SessionID>
+								</xog:Auth>
+							</soapenv:Header>
+							<soapenv:Body>
+								<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
+									<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
+									<customObjectInstances objectCode="stproj_file">
+										<instance
+												instanceCode="${vStudio_Code}-165"
+												objectCode="stproj_file"
+												parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
+											<CustomInformation>
+												<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+												<ColumnValue name="name">${vStudio_Code}-165</ColumnValue>
+												<ColumnValue name="code">${vStudio_Code}-165</ColumnValue>
+												<ColumnValue name="sort_order">165</ColumnValue>
+												<ColumnValue name="filename">165-Portlets.xml</ColumnValue>
+												<ColumnValue name="output_filename">165-Portlets_out.xml</ColumnValue>
+												<ColumnValue name="element_type">Portlet</ColumnValue>
+												<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
+											</CustomInformation>
+											<OBSAssocs completed="false"/>
+										</instance>
+									</customObjectInstances>
+								</NikuDataBus>
+							</soapenv:Body>
+						</soapenv:Envelope>
+					</soap:message>
+				</soap:invoke>
+			</core:catch>
+
+			<core:if test="${v_xog_exception != null}">
+				<gel:log level="warning" message="Caught Exception: ${v_xog_exception}."/>
+			</core:if>		
 			<core:if test="${DebugLevel &gt; 0}">
-				<gel:log level="debug" message="Final Output File: ${vPackagingPath}\09-Portlets.xml"/> 
+				<gel:log level="debug" message="Final Output File: ${vPackagingPath}\165-Portlets.xml"/> 
 			</core:if>
 		</core:if>
 	</core:forEach>

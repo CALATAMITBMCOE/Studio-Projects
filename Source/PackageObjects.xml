@@ -195,16 +195,12 @@
 											objectCode="stproj_file"
 											parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
 										<CustomInformation>
-											<ColumnValue name="odf_cncrt_parent_id">${vStudioProjectID}</ColumnValue>
-											<ColumnValue name="odf_parent_id">${vStudioProjectID}</ColumnValue>
 											<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
 											<ColumnValue name="name">${vStudio_Code}-110${vElementCode}</ColumnValue>
 											<ColumnValue name="code">${vStudio_Code}-110${vElementCode}</ColumnValue>
 											<ColumnValue name="sort_order">110</ColumnValue>
 											<ColumnValue name="filename">110-Objects_${vElementID}.xml</ColumnValue>
 											<ColumnValue name="output_filename">110-Objects_${vElementID}_out.xml</ColumnValue>
-											<ColumnValue name="is_demo">0</ColumnValue>
-											<ColumnValue name="is_data">0</ColumnValue>
 											<ColumnValue name="element_type">MasterObject</ColumnValue>
 											<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
 										</CustomInformation>
