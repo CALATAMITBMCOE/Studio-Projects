@@ -44,13 +44,14 @@
 	</core:forEach>
 			
 	<sql:query escapeText="false" var="vElements">
-		select ELEMENT_ID,CODE from odf_ca_stproj_element
+		select ID, ELEMENT_ID,CODE from odf_ca_stproj_element
 		where element_type = 'obs'
 		and odf_parent_id = ${vStudioProjectID}
 	</sql:query>
 	<core:forEach items="${vElements.rowsByIndex}" var="row">
-		<core:set var="vElementID">${row[0]}</core:set>
-		<core:set var="vElementCode">${row[1]}</core:set>
+		<core:set var="vElementIntl">${row[0]}</core:set>
+		<core:set var="vElementID">${row[1]}</core:set>
+		<core:set var="vElementCode">${row[2]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:log level="debug" message="vElementID: ${vElementID}"/> 
 		</core:if>
@@ -106,13 +107,13 @@
 								<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
 								<customObjectInstances objectCode="stproj_file">
 									<instance
-											instanceCode="${vStudio_Code}-185${vElementID}"
+											instanceCode="${vStudio_Code}-185${vElementIntl}"
 											objectCode="stproj_file"
 											parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
 										<CustomInformation>
 											<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
 											<ColumnValue name="name">${vStudio_Code}-185${vElementID}</ColumnValue>
-											<ColumnValue name="code">${vStudio_Code}-185${vElementID}</ColumnValue>
+											<ColumnValue name="code">${vStudio_Code}-185${vElementIntl}</ColumnValue>
 											<ColumnValue name="sort_order">185</ColumnValue>
 											<ColumnValue name="filename">185-OBS_${vElementID}.xml</ColumnValue>
 											<ColumnValue name="output_filename">185-OBS_${vElementID}_out.xml</ColumnValue>
