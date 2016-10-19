@@ -91,8 +91,8 @@
 		<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
 		
 		<core:if test="${DebugLevel > 1}">
-			<gel:serialize fileName="${XOGwebFolder}/vFinalOutput_${vElementID}_${vStudioProjectID}.xml" var="${vFinalOutput}"/>
-			<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/vFinalOutput_${vElementID}_${vStudioProjectID}.xml"/>
+			<gel:serialize fileName="${XOGwebFolder}/XOGWRITE_110-210-Objects_${vElementID}_${vStudioProjectID}.xml" var="${vFinalOutput}"/>
+			<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_110-210-Objects_${vElementID}_${vStudioProjectID}.xml"/>
 		</core:if>
 		<gel:serialize fileName="${vPackagingPath}/210-Objects_${vElementID}.xml" var="${vFinalOutput}"/>
 		<!-- Inserting File Reference for Installation -->

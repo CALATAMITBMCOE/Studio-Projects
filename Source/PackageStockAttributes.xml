@@ -206,9 +206,33 @@
 		<!--Generating Final OUTPUT -->
 		<gel:serialize var="${v_xml_new}" fileName="${vPackagingPath}/142-StockObjectCustomAttributes_${vMaster}.xml"/>
 
+		<gel:parse var="insertFile">
+			<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
+				<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
+				<customObjectInstances objectCode="stproj_file">
+					<instance
+							instanceCode="${vStudio_Code}-142${vMaster}"
+							objectCode="stproj_file"
+							parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
+						<CustomInformation>
+							<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+							<ColumnValue name="name">${vStudio_Code}-142${vMaster}</ColumnValue>
+							<ColumnValue name="code">${vStudio_Code}-142${vMaster}</ColumnValue>
+							<ColumnValue name="sort_order">142</ColumnValue>
+							<ColumnValue name="filename">142-StockObjectCustomAttributes_${vMaster}.xml</ColumnValue>
+							<ColumnValue name="output_filename">142-StockObjectCustomAttributes_${vMaster}_out.xml</ColumnValue>
+							<ColumnValue name="element_type">StockObjectCustAttr</ColumnValue>
+							<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
+						</CustomInformation>
+						<OBSAssocs completed="false"/>
+					</instance>
+				</customObjectInstances>
+			</NikuDataBus>
+		</gel:parse>
+		
 		<!-- Inserting File Reference for Installation -->
 		<core:catch var="v_xog_exception">
-			<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+			<soap:invoke endpoint="${XOGURL}/niku/xog" var="insertFileResult">
 				<soap:message>
 					<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
 						<soapenv:Header>
@@ -217,27 +241,7 @@
 							</xog:Auth>
 						</soapenv:Header>
 						<soapenv:Body>
-							<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
-								<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
-								<customObjectInstances objectCode="stproj_file">
-									<instance
-											instanceCode="${vStudio_Code}-142${vMaster}"
-											objectCode="stproj_file"
-											parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
-										<CustomInformation>
-											<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
-											<ColumnValue name="name">${vStudio_Code}-142${vMaster}</ColumnValue>
-											<ColumnValue name="code">${vStudio_Code}-142${vMaster}</ColumnValue>
-											<ColumnValue name="sort_order">142</ColumnValue>
-											<ColumnValue name="filename">142-StockObjectCustomAttributes_${vMaster}.xml</ColumnValue>
-											<ColumnValue name="output_filename">142-StockObjectCustomAttributes_${vMaster}_out.xml</ColumnValue>
-											<ColumnValue name="element_type">StockObjectCustAttr</ColumnValue>
-											<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
-										</CustomInformation>
-										<OBSAssocs completed="false"/>
-									</instance>
-								</customObjectInstances>
-							</NikuDataBus>
+							<gel:include select="$insertFile/NikuDataBus"/>
 						</soapenv:Body>
 					</soapenv:Envelope>
 				</soap:message>
@@ -246,6 +250,13 @@
 
 		<core:if test="${v_xog_exception != null}">
 			<gel:log level="warning" message="Caught Exception: ${v_xog_exception}."/>
+		</core:if>
+
+		<core:if test="${DebugLevel &gt; 1}">
+			<gel:serialize var="${insertFile}" fileName="${XOGwebFolder}/XOGWRITE_142-StockObjectCustomAttributes_FileInsert_${vMaster}.xml"/>
+			<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_142-StockObjectCustomAttributes_FileInsert_${vMaster}.xml"/>
+			<gel:serialize var="${insertFileResult}" fileName="${XOGwebFolder}/XOGRESULTS_142-StockObjectCustomAttributes_FileInsert_${vMaster}.xml"/>
+			<gel:log level="debug" message="XOG Results can be found at: ${XOGwebPath}/XOGRESULTS_142-StockObjectCustomAttributes_FileInsert_${vMaster}.xml"/>
 		</core:if>
 		
 		<core:if test="${DebugLevel &gt; 0}">
@@ -414,8 +425,32 @@
 			<gel:serialize var="${v_xml_new}" fileName="${vPackagingPath}/143-StockObjectCustomAttributes_${vMaster}_${vElementID}.xml"/>
 
 			<!-- Inserting File Reference for Installation -->
+			<gel:parse var="insertFile">
+				<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
+					<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
+					<customObjectInstances objectCode="stproj_file">
+						<instance
+								instanceCode="${vStudio_Code}-143${vElementIntl}"
+								objectCode="stproj_file"
+								parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
+							<CustomInformation>
+								<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+								<ColumnValue name="name">${vStudio_Code}-143${vMaster}-${vElementID}</ColumnValue>
+								<ColumnValue name="code">${vStudio_Code}-143${vElementIntl}</ColumnValue>
+								<ColumnValue name="sort_order">143</ColumnValue>
+								<ColumnValue name="filename">143-StockObjectCustomAttributes_${vMaster}_${vElementID}.xml</ColumnValue>
+								<ColumnValue name="output_filename">143-StockObjectCustomAttributes_${vMaster}_${vElementID}_out.xml</ColumnValue>
+								<ColumnValue name="element_type">StockObjectCustAttr</ColumnValue>
+								<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
+							</CustomInformation>
+							<OBSAssocs completed="false"/>
+						</instance>
+					</customObjectInstances>
+				</NikuDataBus>
+			</gel:parse>
+			
 			<core:catch var="v_xog_exception">
-				<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+				<soap:invoke endpoint="${XOGURL}/niku/xog" var="insertFileResult">
 					<soap:message>
 						<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
 							<soapenv:Header>
@@ -424,27 +459,7 @@
 								</xog:Auth>
 							</soapenv:Header>
 							<soapenv:Body>
-								<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
-									<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
-									<customObjectInstances objectCode="stproj_file">
-										<instance
-												instanceCode="${vStudio_Code}-143${vMaster}${vElementIntl}"
-												objectCode="stproj_file"
-												parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
-											<CustomInformation>
-												<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
-												<ColumnValue name="name">${vStudio_Code}-143${vMaster}</ColumnValue>
-												<ColumnValue name="code">${vStudio_Code}-143${vElementIntl}</ColumnValue>
-												<ColumnValue name="sort_order">143</ColumnValue>
-												<ColumnValue name="filename">143-StockObjectCustomAttributes_${vMaster}_${vElementID}.xml</ColumnValue>
-												<ColumnValue name="output_filename">143-StockObjectCustomAttributes_${vMaster}_${vElementID}_out.xml</ColumnValue>
-												<ColumnValue name="element_type">StockObjectCustAttr</ColumnValue>
-												<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
-											</CustomInformation>
-											<OBSAssocs completed="false"/>
-										</instance>
-									</customObjectInstances>
-								</NikuDataBus>
+								<gel:include select="$insertFile/NikuDataBus"/>
 							</soapenv:Body>
 						</soapenv:Envelope>
 					</soap:message>
@@ -453,6 +468,13 @@
 
 			<core:if test="${v_xog_exception != null}">
 				<gel:log level="warning" message="Caught Exception: ${v_xog_exception}."/>
+			</core:if>
+
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:serialize var="${insertFile}" fileName="${XOGwebFolder}/XOGWRITE_143-StockObjectCustomAttributes_FileInsert_${vMaster}_${vElementID}.xml"/>
+				<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_143-StockObjectCustomAttributes_FileInsert_${vMaster}_${vElementID}.xml"/>
+				<gel:serialize var="${insertFileResult}" fileName="${XOGwebFolder}/XOGRESULTS_143-StockObjectCustomAttributes_FileInsert_${vMaster}_${vElementID}.xml"/>
+				<gel:log level="debug" message="XOG Results can be found at: ${XOGwebPath}/XOGRESULTS_143-StockObjectCustomAttributes_FileInsert_${vMaster}_${vElementID}.xml"/>
 			</core:if>
 			
 			<core:if test="${DebugLevel &gt; 0}">
