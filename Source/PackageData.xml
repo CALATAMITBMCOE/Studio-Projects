@@ -51,6 +51,7 @@
 		select distinct data_object_type, object_order, trim(to_char(object_order,'000')) from odf_ca_stproj_data sd
 		where data_type = 'Seed'
 		and odf_parent_id = ${vStudioProjectID}
+		and data_filter_contents is not null
 		order by object_order 
 	</sql:query>
 	<core:forEach items="${vElements.rowsByIndex}" var="row">
@@ -271,6 +272,7 @@
 				where odf_parent_id = ${vStudioProjectID}
 				and data_object_type = '${vObject}'
 				and data_type = 'Seed'
+				and data_filter_contents is not null
 				and object_order = ${vOrderNum}
 			</sql:query>
 			<core:forEach items="${vElements.rowsByIndex}" var="row">
@@ -283,12 +285,7 @@
 					<core:set var="vObjectCode">${row[0]}</core:set>
 				</core:if>
 				<core:set var="vCode">${row[2]}</core:set>
-				<core:if test="${vIteration==0}">
-					<core:set var="vQuery" value="${vCode}"/>
-				</core:if>
-				<core:if test="${vIteration!=0}">
-					<core:set var="vQuery" value="${vQuery},${vCode}"/>
-				</core:if>
+				<core:set var="vQuery" value="${vCode}"/>
 				<core:if test="${DebugLevel &gt; 1}">
 					<gel:log level="debug" message="vCode  : ${vCode}"/> 
 					<gel:log level="debug" message="vQuery : ${vQuery}"/> 
@@ -384,158 +381,159 @@
 					</gel:parse>
 				</core:if>
 				<gel:set select="$v_xml_root/NikuDataBus" value="${vInstance}" insert="true"/>
+			</core:forEach>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:serialize var="${v_xml_root}" fileName="${XOGwebFolder}/XOGREAD_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
+				<gel:log level="debug" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
+			</core:if>
 				
-				<core:if test="${DebugLevel &gt; 1}">
-					<gel:serialize var="${v_xml_root}" fileName="${XOGwebFolder}/XOGREAD_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
-					<gel:log level="debug" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
-				</core:if>
-					
-				<!-- Calling XOG-->
-				<core:catch var="v_xog_exception">
-					<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
-						<soap:message>
-							<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
-								<soapenv:Header>
-									<xog:Auth>
-										<xog:SessionID>${sessionID}</xog:SessionID>
-									</xog:Auth>
-								</soapenv:Header>
-								<soapenv:Body>
-									<gel:include select="$v_xml_root/NikuDataBus"/>
-								</soapenv:Body>
-							</soapenv:Envelope>
-						</soap:message>
-					</soap:invoke>
-				</core:catch>
+			<!-- Calling XOG-->
+			<core:catch var="v_xog_exception">
+				<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+					<soap:message>
+						<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+							<soapenv:Header>
+								<xog:Auth>
+									<xog:SessionID>${sessionID}</xog:SessionID>
+								</xog:Auth>
+							</soapenv:Header>
+							<soapenv:Body>
+								<gel:include select="$v_xml_root/NikuDataBus"/>
+							</soapenv:Body>
+						</soapenv:Envelope>
+					</soap:message>
+				</soap:invoke>
+			</core:catch>
 
-				<core:if test="${DebugLevel &gt; 1}">
-					<gel:serialize var="${runresult}" fileName="${XOGlogFolder}/XOGWRITE_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
-				</core:if>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:serialize var="${runresult}" fileName="${XOGwebFolder}/XOGWRITE_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
+				<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
+			</core:if>
 
-				<gel:set asString="true" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Status/@state" var="XOGoutcome"/>
-				<core:switch on="${XOGoutcome}">
-					<core:case value="SUCCESS">
-						<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/XOGTotalFilteredRecords/@value" var="XOGTotalFilteredRecords"/>
-						<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Statistics/@totalNumberOfRecords" var="totalNumberOfRecords"/>
-						<core:choose>
-							<core:when test="${skipValue == 0}">
-								<core:if test="${DebugLevel &gt; 0}">
-									<core:set var="vMessage" value="Total number of Instances = ${XOGTotalFilteredRecords}"/>
-									<gel:log level="debug" message="${vMessage}"/>
-								</core:if>
-							</core:when>
-							<core:otherwise>
-							</core:otherwise>
-						</core:choose>
-						<core:if test="${DebugLevel &gt; 0}">
-							<core:set var="vMessage" value="Instances XOGed-out this request ${totalNumberOfRecords}"/>
-							<gel:log level="debug" message="${vMessage}"/>
-						</core:if>
-						<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Skip" var="skip"/>
-						<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Skip/@value" var="skipToken"/>
-						<core:set var="skipValue" value="${skipToken.getValue()}"/>
-						<core:choose>
-							<core:when test="${skipValue == null}">
-								<core:if test="${DebugLevel &gt; 0}">
-									<core:set var="vMessage">Skipvalue is Null.</core:set>
-								</core:if>
-							</core:when>
-							<core:otherwise>
-								<core:if test="${DebugLevel &gt; 0}">
-									<core:set var="vMessage" value="Skip Token = ${skipValue}"/>
-									<gel:log level="debug" message="${vMessage}"/>
-								</core:if>
-							</core:otherwise>
-						</core:choose>
-					</core:case>
-					<core:case value="FAILURE">
-						<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Statistics" var="stats"/>
-						<gel:set asString="false" select="$stats/@totalNumberOfRecords" var="totalNumberOfRecords"/>
-						<gel:set asString="false" select="$stats/@failureRecords" var="failureRecords"/>
-						<core:if test="${DebugLevel &gt; 0}">
-							<core:set var="vMessage" value="XOG failed.  Out of ${totalNumberOfRecords} records ${failureRecords} failed."/>
-							<gel:log level="debug" message="${vMessage}"/>
-						</core:if>
-					</core:case>
-				</core:switch>
-				
-				<core:if test="${vObject=='customObjectInstance'}">
-					<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance" var="vInstance1">
-						<gel:forEach select="$vInstance1/CustomInformation/instance" var="vInstance2">
-							<gel:forEach select="$vInstance2/CustomInformation/ColumnValue" var="vColumn2">
-								<gel:set var="vColumnName" select="$vColumn2/@name" asString="true"/>
+			<gel:set asString="true" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Status/@state" var="XOGoutcome"/>
+			<core:switch on="${XOGoutcome}">
+				<core:case value="SUCCESS">
+					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/XOGTotalFilteredRecords/@value" var="XOGTotalFilteredRecords"/>
+					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Statistics/@totalNumberOfRecords" var="totalNumberOfRecords"/>
+					<core:choose>
+						<core:when test="${skipValue == 0}">
+							<core:if test="${DebugLevel &gt; 0}">
+								<core:set var="vMessage" value="Total number of Instances = ${XOGTotalFilteredRecords}"/>
+								<gel:log level="debug" message="${vMessage}"/>
+							</core:if>
+						</core:when>
+						<core:otherwise>
+						</core:otherwise>
+					</core:choose>
+					<core:if test="${DebugLevel &gt; 0}">
+						<core:set var="vMessage" value="Instances XOGed-out this request ${totalNumberOfRecords}"/>
+						<gel:log level="debug" message="${vMessage}"/>
+					</core:if>
+					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Skip" var="skip"/>
+					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Skip/@value" var="skipToken"/>
+					<core:set var="skipValue" value="${skipToken.getValue()}"/>
+					<core:choose>
+						<core:when test="${skipValue == null}">
+							<core:if test="${DebugLevel &gt; 0}">
+								<core:set var="vMessage">Skipvalue is Null.</core:set>
+							</core:if>
+						</core:when>
+						<core:otherwise>
+							<core:if test="${DebugLevel &gt; 0}">
+								<core:set var="vMessage" value="Skip Token = ${skipValue}"/>
+								<gel:log level="debug" message="${vMessage}"/>
+							</core:if>
+						</core:otherwise>
+					</core:choose>
+				</core:case>
+				<core:case value="FAILURE">
+					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Statistics" var="stats"/>
+					<gel:set asString="false" select="$stats/@totalNumberOfRecords" var="totalNumberOfRecords"/>
+					<gel:set asString="false" select="$stats/@failureRecords" var="failureRecords"/>
+					<core:if test="${DebugLevel &gt; 0}">
+						<core:set var="vMessage" value="XOG failed.  Out of ${totalNumberOfRecords} records ${failureRecords} failed."/>
+						<gel:log level="debug" message="${vMessage}"/>
+					</core:if>
+				</core:case>
+			</core:switch>
+			
+			<core:if test="${vObject=='customObjectInstance'}">
+				<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance" var="vInstance1">
+					<gel:forEach select="$vInstance1/CustomInformation/instance" var="vInstance2">
+						<gel:forEach select="$vInstance2/CustomInformation/ColumnValue" var="vColumn2">
+							<gel:set var="vColumnName" select="$vColumn2/@name" asString="true"/>
+							<core:if test="${vColumnName=='odf_cncrt_parent_id' or vColumnName=='odf_parent_id'}">
+								<gel:set value="" select="$vColumn2/text()"/>
+							</core:if>
+						</gel:forEach>
+						<gel:forEach select="$vInstance2/CustomInformation/instance" var="vInstance3">
+							<gel:forEach select="$vInstance3/CustomInformation/ColumnValue" var="vColumn3">
+								<gel:set var="vColumnName" select="$vColumn3/@name" asString="true"/>
 								<core:if test="${vColumnName=='odf_cncrt_parent_id' or vColumnName=='odf_parent_id'}">
-									<gel:set value="" select="$vColumn2/text()"/>
+									<gel:set value="" select="$vColumn3/text()"/>
 								</core:if>
-							</gel:forEach>
-							<gel:forEach select="$vInstance2/CustomInformation/instance" var="vInstance3">
-								<gel:forEach select="$vInstance3/CustomInformation/ColumnValue" var="vColumn3">
-									<gel:set var="vColumnName" select="$vColumn3/@name" asString="true"/>
-									<core:if test="${vColumnName=='odf_cncrt_parent_id' or vColumnName=='odf_parent_id'}">
-										<gel:set value="" select="$vColumn3/text()"/>
-									</core:if>
-								</gel:forEach>
 							</gel:forEach>
 						</gel:forEach>
 					</gel:forEach>
-				</core:if>
-				
-				<!--Generating Final OUTPUT -->
-				<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
-				<core:catch var="XOGoutcome">
-					<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
-				</core:catch>		
-				<core:if test="${DebugLevel &gt; 0}">
-					<gel:log level="debug" message="Final Output File: ${vPackagingPath}/300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
-				</core:if>
-				
-				<!-- Inserting File Reference for Installation -->
-				<core:catch var="v_xog_exception">
-					<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
-						<soap:message>
-							<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
-								<soapenv:Header>
-									<xog:Auth>
-										<xog:SessionID>${sessionID}</xog:SessionID>
-									</xog:Auth>
-								</soapenv:Header>
-								<soapenv:Body>
-									<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
-										<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
-										<customObjectInstances objectCode="stproj_file">
-											<instance
-													instanceCode="${vStudioProjectCODE}-3${vOrder}"
-													objectCode="stproj_file"
-													parentInstanceCode="${vStudioProjectCODE}" parentObjectCode="stproj_project">
-												<CustomInformation>
-													<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
-													<ColumnValue name="name">${vStudioProjectCODE}-3${vOrder}</ColumnValue>
-													<ColumnValue name="code">${vStudioProjectCODE}-3${vOrder}</ColumnValue>
-													<ColumnValue name="sort_order">3${vOrder}</ColumnValue>
-													<ColumnValue name="filename">300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}.xml</ColumnValue>
-													<ColumnValue name="output_filename">300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}_out.xml</ColumnValue>
-													<ColumnValue name="element_type">seeddata</ColumnValue>
-													<ColumnValue name="data_reference">${vDataCode}</ColumnValue>
-												</CustomInformation>
-												<OBSAssocs completed="false"/>
-											</instance>
-										</customObjectInstances>
-									</NikuDataBus>
-								</soapenv:Body>
-							</soapenv:Envelope>
-						</soap:message>
-					</soap:invoke>
-				</core:catch>
+				</gel:forEach>
+			</core:if>
+			
+			<!--Generating Final OUTPUT -->
+			<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
+			<core:catch var="XOGoutcome">
+				<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
+			</core:catch>		
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:log level="debug" message="Final Output File: ${vPackagingPath}/300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
+			</core:if>
+			
+			<!-- Inserting File Reference for Installation -->
+			<core:catch var="v_xog_exception">
+				<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+					<soap:message>
+						<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+							<soapenv:Header>
+								<xog:Auth>
+									<xog:SessionID>${sessionID}</xog:SessionID>
+								</xog:Auth>
+							</soapenv:Header>
+							<soapenv:Body>
+								<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
+									<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
+									<customObjectInstances objectCode="stproj_file">
+										<instance
+												instanceCode="${vStudioProjectCODE}-3${vOrder}"
+												objectCode="stproj_file"
+												parentInstanceCode="${vStudioProjectCODE}" parentObjectCode="stproj_project">
+											<CustomInformation>
+												<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+												<ColumnValue name="name">${vStudioProjectCODE}-3${vOrder}</ColumnValue>
+												<ColumnValue name="code">${vStudioProjectCODE}-3${vOrder}</ColumnValue>
+												<ColumnValue name="sort_order">3${vOrder}</ColumnValue>
+												<ColumnValue name="filename">300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}.xml</ColumnValue>
+												<ColumnValue name="output_filename">300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}_out.xml</ColumnValue>
+												<ColumnValue name="element_type">seeddata</ColumnValue>
+												<ColumnValue name="data_reference">${vDataCode}</ColumnValue>
+											</CustomInformation>
+											<OBSAssocs completed="false"/>
+										</instance>
+									</customObjectInstances>
+								</NikuDataBus>
+							</soapenv:Body>
+						</soapenv:Envelope>
+					</soap:message>
+				</soap:invoke>
+			</core:catch>
 
-				<core:if test="${v_xog_exception != null}">
-					<gel:log level="warning" message="Caught Exception: ${v_xog_exception}."/>
-				</core:if>
-				
-				<core:set var="inc" value="${inc+1}"/>
-				<core:if test="${XOGoutcome != null}">
-					<gel:log level="error" message="Caught Exception: ${XOGoutcome}"/>
-				</core:if>
-			</core:forEach>
+			<core:if test="${v_xog_exception != null}">
+				<gel:log level="warning" message="Caught Exception: ${v_xog_exception}."/>
+			</core:if>
+			
+			<core:set var="inc" value="${inc+1}"/>
+			<core:if test="${XOGoutcome != null}">
+				<gel:log level="error" message="Caught Exception: ${XOGoutcome}"/>
+			</core:if>
+			
 			
 		</core:while>
 	</core:forEach>
@@ -545,6 +543,7 @@
 		select distinct data_object_type, object_order, trim(to_char(object_order,'000')) from odf_ca_stproj_data sd
 		where data_type = 'Demo'
 		and odf_parent_id = ${vStudioProjectID}
+		and data_filter_contents is not null
 		order by object_order 
 	</sql:query>
 	<core:forEach items="${vElements.rowsByIndex}" var="row">
@@ -766,6 +765,7 @@
 				where odf_parent_id = ${vStudioProjectID}
 				and data_object_type = '${vObject}'
 				and data_type = 'Demo'
+				and data_filter_contents is not null
 				and object_order = ${vOrderNum}
 			</sql:query>
 			<core:forEach items="${vElements.rowsByIndex}" var="row">
@@ -875,160 +875,160 @@
 					</gel:parse>
 				</core:if>
 				<gel:set select="$v_xml_root/NikuDataBus" value="${vInstance}" insert="true"/>
+			</core:forEach>
 				
-				<core:if test="${DebugLevel &gt; 1}">
-					<gel:serialize var="${v_xml_root}" fileName="${XOGwebFolder}/XOGREAD_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
-					<gel:log level="debug" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
-				</core:if>
-					
-				<!-- Calling XOG-->
-				<core:catch var="v_xog_exception">
-					<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
-						<soap:message>
-							<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
-								<soapenv:Header>
-									<xog:Auth>
-										<xog:SessionID>${sessionID}</xog:SessionID>
-									</xog:Auth>
-								</soapenv:Header>
-								<soapenv:Body>
-									<gel:include select="$v_xml_root/NikuDataBus"/>
-								</soapenv:Body>
-							</soapenv:Envelope>
-						</soap:message>
-					</soap:invoke>
-				</core:catch>
-
-				<core:if test="${DebugLevel &gt; 1}">
-					<gel:serialize var="${runresult}" fileName="${XOGwebFolder}/XOGWRITE_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
-					<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
-				</core:if>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:serialize var="${v_xml_root}" fileName="${XOGwebFolder}/XOGREAD_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
+				<gel:log level="debug" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
+			</core:if>
 				
-				<gel:set asString="true" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Status/@state" var="XOGoutcome"/>
-				<core:switch on="${XOGoutcome}">
-					<core:case value="SUCCESS">
-						<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/XOGTotalFilteredRecords/@value" var="XOGTotalFilteredRecords"/>
-						<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Statistics/@totalNumberOfRecords" var="totalNumberOfRecords"/>
-						<core:choose>
-							<core:when test="${skipValue == 0}">
-								<core:if test="${DebugLevel &gt; 0}">
-									<core:set var="vMessage" value="Total number of Instances = ${XOGTotalFilteredRecords}"/>
-									<gel:log level="debug" message="${vMessage}"/>
-								</core:if>
-							</core:when>
-							<core:otherwise>
-							</core:otherwise>
-						</core:choose>
-						<core:if test="${DebugLevel &gt; 0}">
-							<core:set var="vMessage" value="Instances XOGed-out this request ${totalNumberOfRecords}"/>
-							<gel:log level="debug" message="${vMessage}"/>
-						</core:if>
-						<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Skip" var="skip"/>
-						<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Skip/@value" var="skipToken"/>
-						<core:set var="skipValue" value="${skipToken.getValue()}"/>
-						<core:choose>
-							<core:when test="${skipValue == null}">
-								<core:if test="${DebugLevel &gt; 0}">
-									<core:set var="vMessage">Skipvalue is Null.</core:set>
-								</core:if>
-							</core:when>
-							<core:otherwise>
-								<core:if test="${DebugLevel &gt; 0}">
-									<core:set var="vMessage" value="Skip Token = ${skipValue}"/>
-									<gel:log level="debug" message="${vMessage}"/>
-								</core:if>
-							</core:otherwise>
-						</core:choose>
-					</core:case>
-					<core:case value="FAILURE">
-						<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Statistics" var="stats"/>
-						<gel:set asString="false" select="$stats/@totalNumberOfRecords" var="totalNumberOfRecords"/>
-						<gel:set asString="false" select="$stats/@failureRecords" var="failureRecords"/>
-						<core:if test="${DebugLevel &gt; 0}">
-							<core:set var="vMessage" value="XOG failed.  Out of ${totalNumberOfRecords} records ${failureRecords} failed."/>
-							<gel:log level="debug" message="${vMessage}"/>
-						</core:if>
-					</core:case>
-				</core:switch>
+			<!-- Calling XOG-->
+			<core:catch var="v_xog_exception">
+				<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+					<soap:message>
+						<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+							<soapenv:Header>
+								<xog:Auth>
+									<xog:SessionID>${sessionID}</xog:SessionID>
+								</xog:Auth>
+							</soapenv:Header>
+							<soapenv:Body>
+								<gel:include select="$v_xml_root/NikuDataBus"/>
+							</soapenv:Body>
+						</soapenv:Envelope>
+					</soap:message>
+				</soap:invoke>
+			</core:catch>
 
-				<core:if test="${vObject=='customObjectInstance'}">
-					<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance" var="vInstance1">
-						<gel:forEach select="$vInstance1/CustomInformation/instance" var="vInstance2">
-							<gel:forEach select="$vInstance2/CustomInformation/ColumnValue" var="vColumn2">
-								<gel:set var="vColumnName" select="$vColumn2/@name" asString="true"/>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:serialize var="${runresult}" fileName="${XOGwebFolder}/XOGWRITE_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
+				<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
+			</core:if>
+			
+			<gel:set asString="true" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Status/@state" var="XOGoutcome"/>
+			<core:switch on="${XOGoutcome}">
+				<core:case value="SUCCESS">
+					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/XOGTotalFilteredRecords/@value" var="XOGTotalFilteredRecords"/>
+					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Statistics/@totalNumberOfRecords" var="totalNumberOfRecords"/>
+					<core:choose>
+						<core:when test="${skipValue == 0}">
+							<core:if test="${DebugLevel &gt; 0}">
+								<core:set var="vMessage" value="Total number of Instances = ${XOGTotalFilteredRecords}"/>
+								<gel:log level="debug" message="${vMessage}"/>
+							</core:if>
+						</core:when>
+						<core:otherwise>
+						</core:otherwise>
+					</core:choose>
+					<core:if test="${DebugLevel &gt; 0}">
+						<core:set var="vMessage" value="Instances XOGed-out this request ${totalNumberOfRecords}"/>
+						<gel:log level="debug" message="${vMessage}"/>
+					</core:if>
+					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Skip" var="skip"/>
+					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Skip/@value" var="skipToken"/>
+					<core:set var="skipValue" value="${skipToken.getValue()}"/>
+					<core:choose>
+						<core:when test="${skipValue == null}">
+							<core:if test="${DebugLevel &gt; 0}">
+								<core:set var="vMessage">Skipvalue is Null.</core:set>
+							</core:if>
+						</core:when>
+						<core:otherwise>
+							<core:if test="${DebugLevel &gt; 0}">
+								<core:set var="vMessage" value="Skip Token = ${skipValue}"/>
+								<gel:log level="debug" message="${vMessage}"/>
+							</core:if>
+						</core:otherwise>
+					</core:choose>
+				</core:case>
+				<core:case value="FAILURE">
+					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Statistics" var="stats"/>
+					<gel:set asString="false" select="$stats/@totalNumberOfRecords" var="totalNumberOfRecords"/>
+					<gel:set asString="false" select="$stats/@failureRecords" var="failureRecords"/>
+					<core:if test="${DebugLevel &gt; 0}">
+						<core:set var="vMessage" value="XOG failed.  Out of ${totalNumberOfRecords} records ${failureRecords} failed."/>
+						<gel:log level="debug" message="${vMessage}"/>
+					</core:if>
+				</core:case>
+			</core:switch>
+
+			<core:if test="${vObject=='customObjectInstance'}">
+				<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/customObjectInstances/instance" var="vInstance1">
+					<gel:forEach select="$vInstance1/CustomInformation/instance" var="vInstance2">
+						<gel:forEach select="$vInstance2/CustomInformation/ColumnValue" var="vColumn2">
+							<gel:set var="vColumnName" select="$vColumn2/@name" asString="true"/>
+							<core:if test="${vColumnName=='odf_cncrt_parent_id' or vColumnName=='odf_parent_id'}">
+								<gel:set value="" select="$vColumn2/text()"/>
+							</core:if>
+						</gel:forEach>
+						<gel:forEach select="$vInstance2/CustomInformation/instance" var="vInstance3">
+							<gel:forEach select="$vInstance3/CustomInformation/ColumnValue" var="vColumn3">
+								<gel:set var="vColumnName" select="$vColumn3/@name" asString="true"/>
 								<core:if test="${vColumnName=='odf_cncrt_parent_id' or vColumnName=='odf_parent_id'}">
-									<gel:set value="" select="$vColumn2/text()"/>
+									<gel:set value="" select="$vColumn3/text()"/>
 								</core:if>
-							</gel:forEach>
-							<gel:forEach select="$vInstance2/CustomInformation/instance" var="vInstance3">
-								<gel:forEach select="$vInstance3/CustomInformation/ColumnValue" var="vColumn3">
-									<gel:set var="vColumnName" select="$vColumn3/@name" asString="true"/>
-									<core:if test="${vColumnName=='odf_cncrt_parent_id' or vColumnName=='odf_parent_id'}">
-										<gel:set value="" select="$vColumn3/text()"/>
-									</core:if>
-								</gel:forEach>
 							</gel:forEach>
 						</gel:forEach>
 					</gel:forEach>
-				</core:if>
+				</gel:forEach>
+			</core:if>
+			
 				
-					
-				<!--Generating Final OUTPUT -->
-				<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
-		
-				<core:catch var="XOGoutcome">
-					<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
-				</core:catch>		
-				<core:if test="${DebugLevel &gt; 0}">
-					<gel:log level="debug" message="Final Output File: ${vPackagingPath}/400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
-				</core:if>
+			<!--Generating Final OUTPUT -->
+			<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
+	
+			<core:catch var="XOGoutcome">
+				<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
+			</core:catch>		
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:log level="debug" message="Final Output File: ${vPackagingPath}/400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
+			</core:if>
 
-				<!-- Inserting File Reference for Installation -->
-				<core:catch var="v_xog_exception">
-					<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
-						<soap:message>
-							<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
-								<soapenv:Header>
-									<xog:Auth>
-										<xog:SessionID>${sessionID}</xog:SessionID>
-									</xog:Auth>
-								</soapenv:Header>
-								<soapenv:Body>
-									<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
-										<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
-										<customObjectInstances objectCode="stproj_file">
-											<instance
-													instanceCode="${vStudioProjectCODE}-9${vOrder}"
-													objectCode="stproj_file"
-													parentInstanceCode="${vStudioProjectCODE}" parentObjectCode="stproj_project">
-												<CustomInformation>
-													<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
-													<ColumnValue name="name">${vStudioProjectCODE}-4${vOrder}</ColumnValue>
-													<ColumnValue name="code">${vStudioProjectCODE}-4${vOrder}</ColumnValue>
-													<ColumnValue name="sort_order">4${vOrder}</ColumnValue>
-													<ColumnValue name="filename">400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}.xml</ColumnValue>
-													<ColumnValue name="output_filename">400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}_out.xml</ColumnValue>
-													<ColumnValue name="element_type">demodata</ColumnValue>
-													<ColumnValue name="data_reference">${vDataCode}</ColumnValue>
-												</CustomInformation>
-												<OBSAssocs completed="false"/>
-											</instance>
-										</customObjectInstances>
-									</NikuDataBus>
-								</soapenv:Body>
-							</soapenv:Envelope>
-						</soap:message>
-					</soap:invoke>
-				</core:catch>
+			<!-- Inserting File Reference for Installation -->
+			<core:catch var="v_xog_exception">
+				<soap:invoke endpoint="${XOGURL}/niku/xog" var="runresult">
+					<soap:message>
+						<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+							<soapenv:Header>
+								<xog:Auth>
+									<xog:SessionID>${sessionID}</xog:SessionID>
+								</xog:Auth>
+							</soapenv:Header>
+							<soapenv:Body>
+								<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
+									<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
+									<customObjectInstances objectCode="stproj_file">
+										<instance
+												instanceCode="${vStudioProjectCODE}-9${vOrder}"
+												objectCode="stproj_file"
+												parentInstanceCode="${vStudioProjectCODE}" parentObjectCode="stproj_project">
+											<CustomInformation>
+												<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+												<ColumnValue name="name">${vStudioProjectCODE}-4${vOrder}</ColumnValue>
+												<ColumnValue name="code">${vStudioProjectCODE}-4${vOrder}</ColumnValue>
+												<ColumnValue name="sort_order">4${vOrder}</ColumnValue>
+												<ColumnValue name="filename">400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}.xml</ColumnValue>
+												<ColumnValue name="output_filename">400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}_out.xml</ColumnValue>
+												<ColumnValue name="element_type">demodata</ColumnValue>
+												<ColumnValue name="data_reference">${vDataCode}</ColumnValue>
+											</CustomInformation>
+											<OBSAssocs completed="false"/>
+										</instance>
+									</customObjectInstances>
+								</NikuDataBus>
+							</soapenv:Body>
+						</soapenv:Envelope>
+					</soap:message>
+				</soap:invoke>
+			</core:catch>
 
-				<core:if test="${v_xog_exception != null}">
-					<gel:log level="warning" message="Caught Exception: ${v_xog_exception}."/>
-				</core:if>
-				<core:set var="inc" value="${inc+1}"/>
-				<core:if test="${XOGoutcome != null}">
-					<gel:log level="error" message="Caught Exception: ${XOGoutcome}"/>
-				</core:if>
-			</core:forEach>
+			<core:if test="${v_xog_exception != null}">
+				<gel:log level="warning" message="Caught Exception: ${v_xog_exception}."/>
+			</core:if>
+			<core:set var="inc" value="${inc+1}"/>
+			<core:if test="${XOGoutcome != null}">
+				<gel:log level="error" message="Caught Exception: ${XOGoutcome}"/>
+			</core:if>
 		</core:while>
 
 	</core:forEach>

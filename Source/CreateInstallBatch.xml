@@ -117,6 +117,7 @@
 			from ODF_CA_STPROJ_FILE
 			Where ODF_PARENT_ID = ${vStudioProjectID}
 			AND ELEMENT_TYPE != 'demodata'
+			AND IS_POST_FILE != 1
 			ORDER BY sort_order
 		</sql:query>
 		<core:forEach items="${vProjectFiles.rowsByIndex}" var="row">
@@ -137,4 +138,90 @@
 		</file:line>
 	</file:writeFile>
 
+	<sql:query escapeText="false" var="vPostInstall">
+		select nvl(count(*),0)
+		from ODF_CA_STPROJ_FILE
+		Where ODF_PARENT_ID = ${vStudioProjectID}
+		AND ELEMENT_TYPE != 'demodata'
+		AND IS_POST_FILE = 1
+	</sql:query>
+	<core:forEach items="${vPostInstall.rowsByIndex}" var="row">
+		<core:set var="vHasPostInstall">${row[0]}</core:set>
+	</core:forEach>
+
+	<core:if test="${vHasPostInstall &gt; 0}">
+		<core:set var="vFileName">${vPackagingPath}/${vProjectCode}PostInstall.bat</core:set>
+		<core:if test="${DebugLevel &gt; 0}">
+			<gel:log level="debug" message="Creating Post File: ${vFileName}"/> 
+		</core:if>
+		
+		<file:writeFile fileName="${vFileName}" delimiter="" embedded="0">
+			<core:set var="vLine">@Echo Off</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+			<core:set var="vLine">SET XOG_HOME=${vXOGHome}</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+			<core:set var="vLine">SET SERVERNAME=${vServername}</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+			<core:set var="vLine">SET PORTNUMBER=${vXOGPort}</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+			<core:set var="vLine">SET SSLENABLED=${vSSL}</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+			<core:set var="vLine">SET USERNAME=${vXOGUser}</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+			<core:set var="vLine">SET PASSWORD=${vXOGPassword}</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+			<core:set var="vLine">SET JAVA_HOME=${vXOGJava}</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+			<core:set var="vLine">CD ${vInputPath}</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+			<core:set var="vLine">IF NOT EXIST output md output</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+
+			<sql:query escapeText="false" var="vProjectFiles">
+				select filename, output_filename 
+				from ODF_CA_STPROJ_FILE
+				Where ODF_PARENT_ID = ${vStudioProjectID}
+				AND ELEMENT_TYPE != 'demodata'
+				AND IS_POST_FILE = 1
+				ORDER BY sort_order
+			</sql:query>
+			<core:forEach items="${vProjectFiles.rowsByIndex}" var="row">
+				<core:set var="vFileIN">${row[0]}</core:set>
+				<core:set var="vFileOUT">${row[1]}</core:set>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="--vFileIN  : ${vFileIN}"/> 
+					<gel:log level="debug" message="--vFileOUT : ${vFileOUT}"/>
+				</core:if>
+				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/${vFileOUT} -input ${vInputPath}/${vFileIN}</core:set>
+				<file:line>
+					<file:column value="${vLine}"/>
+				</file:line>
+			</core:forEach>
+			<core:set var="vLine">pause</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+		</file:writeFile>
+	</core:if>
+	
 </gel:script>

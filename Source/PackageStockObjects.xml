@@ -166,6 +166,37 @@
 			</gel:forEach>
 		</core:forEach>
 
+		<!-- Actions Section -->
+		<gel:parse var="vActionsInstance">
+			<actions/>
+		</gel:parse>
+		<!-- Identify custom actions to look for -->
+		<core:set var="vFoundAction" value="0"/>
+		<sql:query escapeText="false" var="vCustomActions">
+			select OA.CODE,  CAP.NAME
+			from odf_actions OA inner join cmn_captions_nls CAP on CAP.table_name='ODF_ACTIONS' and CAP.PK_ID = OA.ID and cap.language_code='en'
+			where OBJECT_CODE = '${vObjectCode}' and is_custom = 1
+		</sql:query>
+		<core:forEach items="${vCustomActions.rowsByIndex}" var="row">
+			<core:set var="vFoundAction" value="1"/>
+			<core:set var="vCustActionCode">${row[0]}</core:set>
+			<core:set var="vCustActionName">${row[1]}</core:set>
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:log level="debug" message="vCustActionCode   : ${vCustActionCode}"/> 
+				<gel:log level="debug" message="vCustActionName   : ${vCustActionName}"/> 
+			</core:if>
+			
+			<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/actions/action" var="vAction">
+				<gel:set var="vActionCode" select="$vAction/@code" asString="true"/>
+				<core:if test="${DebugLevel &gt; 1}">
+					<gel:log level="debug" message="vActionCode: ${vActionCode}"/> 
+				</core:if>
+				<core:if test="${vActionCode == vCustActionCode}">
+					<gel:set select="$vActionsInstance/actions" value="${vAction}" insert="true"/>
+				</core:if>
+			</gel:forEach>
+		</core:forEach>
+
 		<!--Links Section-->
 		<gel:parse var="vLinksInstance">
 			<links objectCode="${vObjectCode}"/>
@@ -266,7 +297,7 @@
 		
 		<gel:set select="$v_xml_new/NikuDataBus/contentPack/objects" value="${vMasterInstance}" insert="true"/>
 			
-		<!--Generating Final OUTPUT -->
+		<!--Generating Final OUTPUT without Actions -->
 		<gel:serialize var="${v_xml_new}" fileName="${vPackagingPath}/140-StockObject_${vObjectCode}.xml"/>
 		
 		<!-- Inserting File Reference for Installation -->
@@ -285,8 +316,7 @@
 							<ColumnValue name="sort_order">140</ColumnValue>
 							<ColumnValue name="filename">140-StockObject_${vObjectCode}.xml</ColumnValue>
 							<ColumnValue name="output_filename">140-StockObject_${vObjectCode}_out.xml</ColumnValue>
-							<ColumnValue name="is_demo">0</ColumnValue>
-							<ColumnValue name="is_data">0</ColumnValue>
+							<ColumnValue name="is_post_file">0</ColumnValue>
 							<ColumnValue name="element_type">StockObject</ColumnValue>
 							<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
 						</CustomInformation>
@@ -326,6 +356,72 @@
 		<core:if test="${DebugLevel &gt; 0}">
 			<gel:log level="debug" message="Final Output File: ${vPackagingPath}\140-StockObject_${vObjectCode}.xml"/> 
 		</core:if>
+		
+		<core:if test="${vFoundAction ==1}">
+			<gel:set select="$v_xml_new/NikuDataBus/contentPack/objects/object" value="${vActionsInstance}" insert="true"/>
+
+			<!--Generating Final OUTPUT with Actions -->
+			<gel:serialize var="${v_xml_new}" fileName="${vPackagingPath}/240-StockObject_${vObjectCode}.xml"/>
+			
+			<!-- Inserting File Reference for Installation -->
+			<gel:parse var="insertFile">
+				<NikuDataBus xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../xsd/nikuxog_customObjectInstance.xsd">
+					<Header action="write" externalSource="NIKU" objectType="customObjectInstance" version="14.3"/>
+					<customObjectInstances objectCode="stproj_file">
+						<instance
+								instanceCode="${vStudio_Code}-240${vObjectCode}"
+								objectCode="stproj_file"
+								parentInstanceCode="${vStudio_Code}" parentObjectCode="stproj_project">
+							<CustomInformation>
+								<ColumnValue name="partition_code">${vStudio_Part}</ColumnValue>
+								<ColumnValue name="name">${vStudio_Code}-240${vObjectCode}</ColumnValue>
+								<ColumnValue name="code">${vStudio_Code}-240${vObjectCode}</ColumnValue>
+								<ColumnValue name="sort_order">240</ColumnValue>
+								<ColumnValue name="filename">240-StockObject_${vObjectCode}.xml</ColumnValue>
+								<ColumnValue name="output_filename">240-StockObject_${vObjectCode}_out.xml</ColumnValue>
+								<ColumnValue name="is_post_file">1</ColumnValue>
+								<ColumnValue name="element_type">StockObject</ColumnValue>
+								<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
+							</CustomInformation>
+							<OBSAssocs completed="false"/>
+						</instance>
+					</customObjectInstances>
+				</NikuDataBus>
+			</gel:parse>
+			
+			<core:catch var="v_xog_exception">
+				<soap:invoke endpoint="${XOGURL}/niku/xog" var="insertFileResult">
+					<soap:message>
+						<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xog="http://www.niku.com/xog">
+							<soapenv:Header>
+								<xog:Auth>
+									<xog:SessionID>${sessionID}</xog:SessionID>
+								</xog:Auth>
+							</soapenv:Header>
+							<soapenv:Body>
+								<gel:include select="$insertFile/NikuDataBus"/>
+							</soapenv:Body>
+						</soapenv:Envelope>
+					</soap:message>
+				</soap:invoke>
+			</core:catch>
+
+			<core:if test="${v_xog_exception != null}">
+				<gel:log level="warning" message="Caught Exception: ${v_xog_exception}."/>
+			</core:if>		
+			<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
+			<core:if test="${DebugLevel &gt; 1}">
+				<gel:serialize var="${insertFile}" fileName="${XOGwebFolder}/XOGWRITE_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
+				<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
+				<gel:serialize var="${insertFileResult}" fileName="${XOGwebFolder}/XOGRESULTS_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
+				<gel:log level="debug" message="XOG Results can be found at: ${XOGwebPath}/XOGRESULTS_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
+			</core:if>
+			<core:if test="${DebugLevel &gt; 0}">
+				<gel:log level="debug" message="Final Output File: ${vPackagingPath}\140-StockObject_${vObjectCode}.xml"/> 
+			</core:if>
+			
+		</core:if>
+
 	</core:forEach>
 
 </gel:script>

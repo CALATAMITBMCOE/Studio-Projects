@@ -91,8 +91,9 @@
 		</file:line>
 
 		<core:set var="vIncludesDemoData" value="0"/>
+		<core:set var="vIncludesPostInstall" value="0"/>
 		<sql:query escapeText="false" var="vProjectFiles">
-			select filename, element_type 
+			select filename, element_type, is_post_file
 			from ODF_CA_STPROJ_FILE
 			Where ODF_PARENT_ID = ${vStudioProjectID}
 			ORDER BY sort_order
@@ -100,12 +101,17 @@
 		<core:forEach items="${vProjectFiles.rowsByIndex}" var="row">
 			<core:set var="vFileIN">${row[0]}</core:set>
 			<core:set var="vFileType">${row[1]}</core:set>
+			<core:set var="vPostFile">${row[2]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
 				<gel:log level="debug" message="--vFileIN  : ${vFileIN}"/> 
 				<gel:log level="debug" message="--vFileType: ${vFileType}"/>
+				<gel:log level="debug" message="--vPostFile: ${vPostFile}"/>
 
 				<core:if test="${vFileType == 'demodata'}">
 					<core:set var="vIncludesDemoData" value="1"/>
+				</core:if>
+				<core:if test="${vPostFile == 1}">
+					<core:set var="vIncludesPostInstall" value="1"/>
 				</core:if>
  				<core:set var="vLine">${vPackagingPath}/${vFileIN},\</core:set>
 				<file:line>
@@ -117,6 +123,13 @@
 		<file:line>
 			<file:column value="${vLine}"/>
 		</file:line>
+		<core:if test="${vIncludesPostInstall == 1}">
+			<core:set var="vLine">${vPackagingPath}/${vProjectCode}PostInstall.bat,\</core:set>
+			<file:line>
+				<file:column value="${vLine}"/>
+			</file:line>
+		</core:if>
+
 		<core:if test="${vIncludesDemoData == 1}">
 			<core:set var="vLine">${vPackagingPath}/${vProjectCode}Install_Demo.bat,\</core:set>
 			<file:line>

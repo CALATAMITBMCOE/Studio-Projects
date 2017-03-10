@@ -122,8 +122,7 @@
 											<ColumnValue name="sort_order">210</ColumnValue>
 											<ColumnValue name="filename">210-Objects_${vElementID}.xml</ColumnValue>
 											<ColumnValue name="output_filename">210-Objects_${vElementID}_out.xml</ColumnValue>
-											<ColumnValue name="is_demo">0</ColumnValue>
-											<ColumnValue name="is_data">0</ColumnValue>
+											<ColumnValue name="is_post_file">1</ColumnValue>
 											<ColumnValue name="element_type">MasterObject</ColumnValue>
 											<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
 										</CustomInformation>
@@ -201,6 +200,7 @@
 											<ColumnValue name="sort_order">110</ColumnValue>
 											<ColumnValue name="filename">110-Objects_${vElementID}.xml</ColumnValue>
 											<ColumnValue name="output_filename">110-Objects_${vElementID}_out.xml</ColumnValue>
+											<ColumnValue name="is_post_file">0</ColumnValue>
 											<ColumnValue name="element_type">MasterObject</ColumnValue>
 											<ColumnValue name="data_reference">${vElementCode}</ColumnValue>
 										</CustomInformation>
