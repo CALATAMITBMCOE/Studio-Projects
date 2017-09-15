@@ -32,9 +32,7 @@
 		<gel:log level="debug" message="vInstallDirInput :  ${vInstallDirInput}"/>
 	</core:if>
 	
-	<core:new className="java.lang.String" var="InputString" >
-		<core:arg type="java.lang.String" value="${vInstallDirInput}" />
-	</core:new>
+	<core:set var="InputString" value="${vInstallDirInput}"/>
 
 	<core:invoke var="vInputStringCorrect" on="${InputString}" method="replaceAll">
 		<core:arg type="java.lang.String" value="\\\\"/>
@@ -61,13 +59,55 @@
     <core:set var="WebServerid" value="${config.getProperties().getWebServer().getWebServerInstance(0).getId()}"/>
 	<!-- Tests if Instance 0 is app - then gets instance 0 data -->
 	<core:if test="${WebServerid == 'app'}">
-        <core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(0).getEntryUrl()}"/>
-        <core:set var="entryUrlPort" value="${config.getProperties().getWebServer().getWebServerInstance(0).getPort()}"/>
+		<core:set var="SSLEnabled" value="${config.getProperties().getWebServer().getWebServerInstance(0).getEnableSSLPort()}"/>
+		<core:if test="${SSLEnabled == 'false'}">
+			<core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(0).getEntryUrl()}"/>
+			<core:set var="entryUrlPort" value="${config.getProperties().getWebServer().getWebServerInstance(0).getPort()}"/>
+		</core:if>
+		<core:if test="${SSLEnabled == 'true'}">
+			<core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(0).getSslEntryUrl()}"/>
+		</core:if>
 	</core:if>
-	<!-- Tests if Instance 0 is nsa - then gets instance 1 data -->
-	<core:if test="${WebServerid == 'nsa'}">
-        <core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(1).getEntryUrl()}"/>
-        <core:set var="entryUrlPort" value="${config.getProperties().getWebServer().getWebServerInstance(1).getPort()}"/>
+	<!-- Tests if Instance 0 is no app - then gets instance 1 data -->
+	<core:if test="${WebServerid != 'app'}">
+		<core:set var="WebServerid" value="${config.getProperties().getWebServer().getWebServerInstance(1).getId()}"/>
+		<!-- Tests if Instance 1 is app - then gets instance 1 data -->
+		<core:if test="${WebServerid == 'app'}">
+			<core:set var="SSLEnabled" value="${config.getProperties().getWebServer().getWebServerInstance(1).getEnableSSLPort()}"/>
+			<core:if test="${SSLEnabled == 'false'}">
+				<core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(1).getEntryUrl()}"/>
+				<core:set var="entryUrlPort" value="${config.getProperties().getWebServer().getWebServerInstance(1).getPort()}"/>
+			</core:if>
+			<core:if test="${SSLEnabled == 'true'}">
+				<core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(1).getSslEntryUrl()}"/>
+			</core:if>
+		</core:if>
+		<!-- Tests if Instance 1 is not app - then reads instance 2 -->
+		<core:if test="${WebServerid != 'app'}">
+			<core:set var="WebServerid" value="${config.getProperties().getWebServer().getWebServerInstance(2).getId()}"/>
+			<core:if test="${WebServerid == 'app'}">
+				<core:set var="SSLEnabled" value="${config.getProperties().getWebServer().getWebServerInstance(2).getEnableSSLPort()}"/>
+				<core:if test="${SSLEnabled == 'false'}">
+					<core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(2).getEntryUrl()}"/>
+					<core:set var="entryUrlPort" value="${config.getProperties().getWebServer().getWebServerInstance(2).getPort()}"/>
+				</core:if>
+				<core:if test="${SSLEnabled == 'true'}">
+					<core:set var="entryUrl" value="${config.getProperties().getWebServer().getWebServerInstance(2).getSslEntryUrl()}"/>
+				</core:if>
+			</core:if>
+			<core:if test="${WebServerid != 'app'}">
+				<gel:log level="ERROR" message="WebServerid	APP not Found!"/>
+			</core:if>
+		</core:if>
+	</core:if>
+
+	<!-- This should work with NA Servers where SSL is implemented in Apache and CA PPM is unaware of it -->
+	<core:invoke var="vProtocol" on="${entryUrl}" method="substring">
+		<core:arg type="int" value="0"/>
+		<core:arg type="int" value="5"/>
+	</core:invoke>
+	<core:if test="${vProtocol == 'https'}">
+		<core:set var="SSLEnabled" value="true"/>
 	</core:if>
 
 	<core:if test="${DebugLevel &gt; 1}">
@@ -78,9 +118,12 @@
 
 	<!-- Not sure whether I should use entryUrl -->
 	<core:set var="XOGURL" value="${entryUrl}:${entryUrlPort}"/>
+	<core:if test="${SSLEnabled == 'true'}">
+		<core:set var="XOGURL" value="${entryUrl}"/>
+	</core:if>
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="XOGURL: ${XOGURL}"/> 
-		<gel:log level="debug" message="XOGlogFolder: ${XOGlogFolder}"/> 
+		<gel:log level="debug" message="XOGURL: ${XOGURL}"/>
+		<gel:log level="debug" message="XOGlogFolder: ${XOGlogFolder}"/>
 	</core:if>
 
 	<!-- Get Database Vendor -->
