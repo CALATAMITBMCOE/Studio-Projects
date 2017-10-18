@@ -16,15 +16,15 @@
 	
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="Start Script"/>
-		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
-		<gel:log level="debug" message=">>Persisted XOG URL   	: ${XOGURL}"/> 
-		<gel:log level="debug" message=">>Persisted LOG Folder	: ${XOGlogFolder}"/> 
-		<gel:log level="debug" message=">>Persisted WEB Folder	: ${XOGwebFolder}"/> 
-		<gel:log level="debug" message=">>Persisted WEB Path	: ${XOGwebPath}"/> 
-		<gel:log level="debug" message=">>Persisted DB Vendor	: ${dbVendor}"/> 
-		<gel:log level="debug" message=">>Persisted SessionID 	: ${sessionID}"/> 
-		<gel:log level="debug" message=">>Persisted DebugLevel	: ${DebugLevel}"/> 
+		<gel:log level="INFO" message="Start Script"/>
+		<gel:log level="INFO" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="INFO" message=">>Persisted XOG URL   	: ${XOGURL}"/> 
+		<gel:log level="INFO" message=">>Persisted LOG Folder	: ${XOGlogFolder}"/> 
+		<gel:log level="INFO" message=">>Persisted WEB Folder	: ${XOGwebFolder}"/> 
+		<gel:log level="INFO" message=">>Persisted WEB Path	: ${XOGwebPath}"/> 
+		<gel:log level="INFO" message=">>Persisted DB Vendor	: ${dbVendor}"/> 
+		<gel:log level="INFO" message=">>Persisted SessionID 	: ${sessionID}"/> 
+		<gel:log level="INFO" message=">>Persisted DebugLevel	: ${DebugLevel}"/> 
 	</core:if>
 
     <gel:setDataSource dbId="Niku"/>
@@ -39,7 +39,7 @@
 		<core:set var="vStudio_Code">${row[2]}</core:set>
 		<core:set var="vProjectInitials">${row[3]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
+			<gel:log level="INFO" message="vPackagingPath: ${vPackagingPath}"/> 
 		</core:if>
 	</core:forEach>
 			
@@ -54,7 +54,7 @@
 		<core:set var="vObjectCode">${row[0]}</core:set>
 		<core:set var="vElementCode">${row[1]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vObjectCode   : ${vObjectCode}"/> 
+			<gel:log level="INFO" message="vObjectCode   : ${vObjectCode}"/> 
 		</core:if>
 
 		<gel:parse var="v_xml_root">
@@ -77,7 +77,7 @@
 		<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:serialize var="${v_xml_root}" fileName="${XOGlogFolder}/XOGREAD_140-StockObject_${vObjectCode}_${vStudioProjectID}.xml"/>
-			<gel:log level="debug" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_140-StockObject_${vObjectCode}_${vStudioProjectID}.xml"/>
+			<gel:log level="INFO" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_140-StockObject_${vObjectCode}_${vStudioProjectID}.xml"/>
 		</core:if>
 	
 		<!-- Calling XOG-->
@@ -101,7 +101,7 @@
 		<!--Serializing Full Master Object for Debugging-->
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:serialize var="${runresult}" fileName="${XOGwebFolder}/XOGWRITE_140-StockObject_Full_${vObjectCode}_${vStudioProjectID}.xml"/>
-			<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_140-StockObject_Full_${vObjectCode}_${vStudioProjectID}.xml"/>
+			<gel:log level="INFO" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_140-StockObject_Full_${vObjectCode}_${vStudioProjectID}.xml"/>
 		</core:if>
 		
 		<!-- Preparing New Master Instance ONLY with Custom Information-->
@@ -121,9 +121,9 @@
 		<gel:set var="vMIsource" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/@source" asString="true"/>
 
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vMIcode: ${vMIcode}"/> 
-			<gel:log level="debug" message="vMIraiseEvents: ${vMIraiseEvents}"/> 
-			<gel:log level="debug" message="vMIsource: ${vMIsource}"/> 
+			<gel:log level="INFO" message="vMIcode: ${vMIcode}"/> 
+			<gel:log level="INFO" message="vMIraiseEvents: ${vMIraiseEvents}"/> 
+			<gel:log level="INFO" message="vMIsource: ${vMIsource}"/> 
 		</core:if>
 			
 		<gel:parse var="vMasterInstance">
@@ -151,14 +151,14 @@
 			<core:set var="vCustAttrCode">${row[0]}</core:set>
 			<core:set var="vCustAttrName">${row[1]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vCustAttrCode   : ${vCustAttrCode}"/> 
-				<gel:log level="debug" message="vCustAttrName   : ${vCustAttrName}"/> 
+				<gel:log level="INFO" message="vCustAttrCode   : ${vCustAttrCode}"/> 
+				<gel:log level="INFO" message="vCustAttrName   : ${vCustAttrName}"/> 
 			</core:if>
 
 			<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/customAttribute" var="vcustomAttribute">
 				<gel:set var="vAttrCode" select="$vcustomAttribute/@code" asString="true"/>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vAttrCode: ${vAttrCode}"/> 
+					<gel:log level="INFO" message="vAttrCode: ${vAttrCode}"/> 
 				</core:if>
 				<core:if test="${vAttrCode == vCustAttrCode}">
 					<gel:set select="$vMasterInstance/object" value="${vcustomAttribute}" insert="true"/>
@@ -182,14 +182,14 @@
 			<core:set var="vCustActionCode">${row[0]}</core:set>
 			<core:set var="vCustActionName">${row[1]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vCustActionCode   : ${vCustActionCode}"/> 
-				<gel:log level="debug" message="vCustActionName   : ${vCustActionName}"/> 
+				<gel:log level="INFO" message="vCustActionCode   : ${vCustActionCode}"/> 
+				<gel:log level="INFO" message="vCustActionName   : ${vCustActionName}"/> 
 			</core:if>
 			
 			<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/actions/action" var="vAction">
 				<gel:set var="vActionCode" select="$vAction/@code" asString="true"/>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vActionCode: ${vActionCode}"/> 
+					<gel:log level="INFO" message="vActionCode: ${vActionCode}"/> 
 				</core:if>
 				<core:if test="${vActionCode == vCustActionCode}">
 					<gel:set select="$vActionsInstance/actions" value="${vAction}" insert="true"/>
@@ -213,14 +213,14 @@
 			<core:set var="vCustLinkCode">${row[0]}</core:set>
 			<core:set var="vCustLinkName">${row[1]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vCustLinkCode   : ${vCustLinkCode}"/> 
-				<gel:log level="debug" message="vCustLinkName   : ${vCustLinkName}"/> 
+				<gel:log level="INFO" message="vCustLinkCode   : ${vCustLinkCode}"/> 
+				<gel:log level="INFO" message="vCustLinkName   : ${vCustLinkName}"/> 
 			</core:if>
 
 			<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/links/link" var="vcustomLink">
 				<gel:set var="vLinkCode" select="$vcustomLink/@action" asString="true"/>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vLinkCode: ${vLinkCode}"/> 
+					<gel:log level="INFO" message="vLinkCode: ${vLinkCode}"/> 
 				</core:if>
 				<core:if test="${vLinkCode == vCustLinkCode}">
 					<gel:set select="$vLinksInstance/links" value="${vcustomLink}" insert="true"/>
@@ -246,13 +246,13 @@
 			<core:set var="vFoundMapping" value="1"/>
 			<core:set var="vCustDMapCode">${row[0]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vCustDMapCode   : ${vCustDMapCode}"/> 
+				<gel:log level="INFO" message="vCustDMapCode   : ${vCustDMapCode}"/> 
 			</core:if>
 
 			<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/displayMappings/displayMapping" var="vcustomDMapping">
 				<gel:set var="vDMapCode" select="$vcustomDMapping/@attributeCode" asString="true"/>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vDMapCode: ${vDMapCode}"/> 
+					<gel:log level="INFO" message="vDMapCode: ${vDMapCode}"/> 
 				</core:if>
 				<core:if test="${vDMapCode == vCustDMapCode}">
 					<gel:set select="$vDMappingInstance/displayMappings" value="${vcustomDMapping}" insert="true"/>
@@ -278,13 +278,13 @@
 			<core:set var="vFoundAutonum" value="1"/>
 			<core:set var="vCustAutoCode">${row[0]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vCustAutoCode   : ${vCustAutoCode}"/> 
+				<gel:log level="INFO" message="vCustAutoCode   : ${vCustAutoCode}"/> 
 			</core:if>
 
 			<gel:forEach select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/contentPack/objects/object/autonumbering/attributeAutonumbering" var="vcustomAutonum">
 				<gel:set var="vAutoCode" select="$vcustomAutonum/@code" asString="true"/>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vAutoCode: ${vAutoCode}"/> 
+					<gel:log level="INFO" message="vAutoCode: ${vAutoCode}"/> 
 				</core:if>
 				<core:if test="${vAutoCode == vCustAutoCode}">
 					<gel:set select="$vAutoNumbering/autonumbering" value="${vcustomAutonum}" insert="true"/>
@@ -349,12 +349,12 @@
 		<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:serialize var="${insertFile}" fileName="${XOGwebFolder}/XOGWRITE_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
-			<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
+			<gel:log level="INFO" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
 			<gel:serialize var="${insertFileResult}" fileName="${XOGwebFolder}/XOGRESULTS_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
-			<gel:log level="debug" message="XOG Results can be found at: ${XOGwebPath}/XOGRESULTS_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
+			<gel:log level="INFO" message="XOG Results can be found at: ${XOGwebPath}/XOGRESULTS_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
 		</core:if>
 		<core:if test="${DebugLevel &gt; 0}">
-			<gel:log level="debug" message="Final Output File: ${vPackagingPath}\140-StockObject_${vObjectCode}.xml"/> 
+			<gel:log level="INFO" message="Final Output File: ${vPackagingPath}\140-StockObject_${vObjectCode}.xml"/> 
 		</core:if>
 		
 		<core:if test="${vFoundAction ==1}">
@@ -412,12 +412,12 @@
 			<!-- Include this line for DEBUGGING only - it generates the "XML" file -->
 			<core:if test="${DebugLevel &gt; 1}">
 				<gel:serialize var="${insertFile}" fileName="${XOGwebFolder}/XOGWRITE_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
-				<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
+				<gel:log level="INFO" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
 				<gel:serialize var="${insertFileResult}" fileName="${XOGwebFolder}/XOGRESULTS_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
-				<gel:log level="debug" message="XOG Results can be found at: ${XOGwebPath}/XOGRESULTS_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
+				<gel:log level="INFO" message="XOG Results can be found at: ${XOGwebPath}/XOGRESULTS_140-StockObject_FileInsert_${vObjectCode}_${vStudioProjectID}.xml"/>
 			</core:if>
 			<core:if test="${DebugLevel &gt; 0}">
-				<gel:log level="debug" message="Final Output File: ${vPackagingPath}\140-StockObject_${vObjectCode}.xml"/> 
+				<gel:log level="INFO" message="Final Output File: ${vPackagingPath}\140-StockObject_${vObjectCode}.xml"/> 
 			</core:if>
 			
 		</core:if>

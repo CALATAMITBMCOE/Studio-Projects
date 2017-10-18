@@ -17,15 +17,15 @@
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
 	
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="Start Script"/>
-		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
-		<gel:log level="debug" message=">>Persisted XOG URL   	: ${XOGURL}"/> 
-		<gel:log level="debug" message=">>Persisted LOG Folder	: ${XOGlogFolder}"/> 
-		<gel:log level="debug" message=">>Persisted WEB Folder	: ${XOGwebFolder}"/> 
-		<gel:log level="debug" message=">>Persisted WEB Path	: ${XOGwebPath}"/> 
-		<gel:log level="debug" message=">>Persisted DB Vendor	: ${dbVendor}"/> 
-		<gel:log level="debug" message=">>Persisted SessionID 	: ${sessionID}"/> 
-		<gel:log level="debug" message=">>Persisted DebugLevel	: ${DebugLevel}"/> 
+		<gel:log level="INFO" message="Start Script"/>
+		<gel:log level="INFO" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="INFO" message=">>Persisted XOG URL   	: ${XOGURL}"/> 
+		<gel:log level="INFO" message=">>Persisted LOG Folder	: ${XOGlogFolder}"/> 
+		<gel:log level="INFO" message=">>Persisted WEB Folder	: ${XOGwebFolder}"/> 
+		<gel:log level="INFO" message=">>Persisted WEB Path	: ${XOGwebPath}"/> 
+		<gel:log level="INFO" message=">>Persisted DB Vendor	: ${dbVendor}"/> 
+		<gel:log level="INFO" message=">>Persisted SessionID 	: ${sessionID}"/> 
+		<gel:log level="INFO" message=">>Persisted DebugLevel	: ${DebugLevel}"/> 
 	</core:if>
 
     <gel:setDataSource dbId="Niku"/>
@@ -40,9 +40,9 @@
 		<core:set var="vInstance">${row[2]}</core:set>
 		<core:set var="vStudio_Part">${row[3]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
-			<gel:log level="debug" message="vStudioProjectCODE: ${vStudioProjectCODE}"/> 
-			<gel:log level="debug" message="vInstance: 			${vInstance}"/> 
+			<gel:log level="INFO" message="vPackagingPath: ${vPackagingPath}"/> 
+			<gel:log level="INFO" message="vStudioProjectCODE: ${vStudioProjectCODE}"/> 
+			<gel:log level="INFO" message="vInstance: 			${vInstance}"/> 
 		</core:if>
 	</core:forEach>
 
@@ -59,7 +59,7 @@
 		<core:set var="vOrderNum">${row[1]}</core:set>
 		<core:set var="vOrder">${row[2]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vObject   : ${vObject}  Order :${vOrder}"/> 
+			<gel:log level="INFO" message="vObject   : ${vObject}  Order :${vOrder}"/> 
 		</core:if>
 
 		<core:set var="skipValue" value="0"/>
@@ -287,8 +287,8 @@
 				<core:set var="vCode">${row[2]}</core:set>
 				<core:set var="vQuery" value="${vCode}"/>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vCode  : ${vCode}"/> 
-					<gel:log level="debug" message="vQuery : ${vQuery}"/> 
+					<gel:log level="INFO" message="vCode  : ${vCode}"/> 
+					<gel:log level="INFO" message="vQuery : ${vQuery}"/> 
 				</core:if>
 
 				<core:if test="${vObjectCode==''}">
@@ -384,7 +384,7 @@
 			</core:forEach>
 			<core:if test="${DebugLevel &gt; 1}">
 				<gel:serialize var="${v_xml_root}" fileName="${XOGwebFolder}/XOGREAD_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
-				<gel:log level="debug" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
+				<gel:log level="INFO" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
 			</core:if>
 				
 			<!-- Calling XOG-->
@@ -407,7 +407,7 @@
 
 			<core:if test="${DebugLevel &gt; 1}">
 				<gel:serialize var="${runresult}" fileName="${XOGwebFolder}/XOGWRITE_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
-				<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
+				<gel:log level="INFO" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_300-SeedData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
 			</core:if>
 
 			<gel:set asString="true" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Status/@state" var="XOGoutcome"/>
@@ -419,7 +419,7 @@
 						<core:when test="${skipValue == 0}">
 							<core:if test="${DebugLevel &gt; 0}">
 								<core:set var="vMessage" value="Total number of Instances = ${XOGTotalFilteredRecords}"/>
-								<gel:log level="debug" message="${vMessage}"/>
+								<gel:log level="INFO" message="${vMessage}"/>
 							</core:if>
 						</core:when>
 						<core:otherwise>
@@ -427,7 +427,7 @@
 					</core:choose>
 					<core:if test="${DebugLevel &gt; 0}">
 						<core:set var="vMessage" value="Instances XOGed-out this request ${totalNumberOfRecords}"/>
-						<gel:log level="debug" message="${vMessage}"/>
+						<gel:log level="INFO" message="${vMessage}"/>
 					</core:if>
 					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Skip" var="skip"/>
 					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Skip/@value" var="skipToken"/>
@@ -441,7 +441,7 @@
 						<core:otherwise>
 							<core:if test="${DebugLevel &gt; 0}">
 								<core:set var="vMessage" value="Skip Token = ${skipValue}"/>
-								<gel:log level="debug" message="${vMessage}"/>
+								<gel:log level="INFO" message="${vMessage}"/>
 							</core:if>
 						</core:otherwise>
 					</core:choose>
@@ -452,7 +452,7 @@
 					<gel:set asString="false" select="$stats/@failureRecords" var="failureRecords"/>
 					<core:if test="${DebugLevel &gt; 0}">
 						<core:set var="vMessage" value="XOG failed.  Out of ${totalNumberOfRecords} records ${failureRecords} failed."/>
-						<gel:log level="debug" message="${vMessage}"/>
+						<gel:log level="INFO" message="${vMessage}"/>
 					</core:if>
 				</core:case>
 			</core:switch>
@@ -484,7 +484,7 @@
 				<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
 			</core:catch>		
 			<core:if test="${DebugLevel &gt; 0}">
-				<gel:log level="debug" message="Final Output File: ${vPackagingPath}/300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
+				<gel:log level="INFO" message="Final Output File: ${vPackagingPath}/300-SeedData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
 			</core:if>
 			
 			<!-- Inserting File Reference for Installation -->
@@ -551,7 +551,7 @@
 		<core:set var="vOrderNum">${row[1]}</core:set>
 		<core:set var="vOrder">${row[2]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vObject   : ${vObject}  Order :${vOrder}"/> 
+			<gel:log level="INFO" message="vObject   : ${vObject}  Order :${vOrder}"/> 
 		</core:if>
 
 		<core:set var="skipValue" value="0"/>
@@ -780,9 +780,9 @@
 				<core:set var="vCode">${row[2]}</core:set>
 				<core:set var="vQuery" value="${vCode}"/>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vCode  		: ${vCode}"/> 
-					<gel:log level="debug" message="vQuery 		: ${vQuery}"/> 
-					<gel:log level="debug" message="vObjectCode : ${vObjectCode}"/> 
+					<gel:log level="INFO" message="vCode  		: ${vCode}"/> 
+					<gel:log level="INFO" message="vQuery 		: ${vQuery}"/> 
+					<gel:log level="INFO" message="vObjectCode : ${vObjectCode}"/> 
 				</core:if>
 
 				<core:if test="${vObjectCode==''}">
@@ -879,7 +879,7 @@
 				
 			<core:if test="${DebugLevel &gt; 1}">
 				<gel:serialize var="${v_xml_root}" fileName="${XOGwebFolder}/XOGREAD_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
-				<gel:log level="debug" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
+				<gel:log level="INFO" message="XOG Read can be found at: ${XOGwebPath}/XOGREAD_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
 			</core:if>
 				
 			<!-- Calling XOG-->
@@ -902,7 +902,7 @@
 
 			<core:if test="${DebugLevel &gt; 1}">
 				<gel:serialize var="${runresult}" fileName="${XOGwebFolder}/XOGWRITE_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
-				<gel:log level="debug" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
+				<gel:log level="INFO" message="XOG Write can be found at: ${XOGwebPath}/XOGWRITE_400-DemoData_${vStudioProjectID}_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
 			</core:if>
 			
 			<gel:set asString="true" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Status/@state" var="XOGoutcome"/>
@@ -914,7 +914,7 @@
 						<core:when test="${skipValue == 0}">
 							<core:if test="${DebugLevel &gt; 0}">
 								<core:set var="vMessage" value="Total number of Instances = ${XOGTotalFilteredRecords}"/>
-								<gel:log level="debug" message="${vMessage}"/>
+								<gel:log level="INFO" message="${vMessage}"/>
 							</core:if>
 						</core:when>
 						<core:otherwise>
@@ -922,7 +922,7 @@
 					</core:choose>
 					<core:if test="${DebugLevel &gt; 0}">
 						<core:set var="vMessage" value="Instances XOGed-out this request ${totalNumberOfRecords}"/>
-						<gel:log level="debug" message="${vMessage}"/>
+						<gel:log level="INFO" message="${vMessage}"/>
 					</core:if>
 					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Skip" var="skip"/>
 					<gel:set asString="false" select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus/XOGOutput/Skip/@value" var="skipToken"/>
@@ -936,7 +936,7 @@
 						<core:otherwise>
 							<core:if test="${DebugLevel &gt; 0}">
 								<core:set var="vMessage" value="Skip Token = ${skipValue}"/>
-								<gel:log level="debug" message="${vMessage}"/>
+								<gel:log level="INFO" message="${vMessage}"/>
 							</core:if>
 						</core:otherwise>
 					</core:choose>
@@ -947,7 +947,7 @@
 					<gel:set asString="false" select="$stats/@failureRecords" var="failureRecords"/>
 					<core:if test="${DebugLevel &gt; 0}">
 						<core:set var="vMessage" value="XOG failed.  Out of ${totalNumberOfRecords} records ${failureRecords} failed."/>
-						<gel:log level="debug" message="${vMessage}"/>
+						<gel:log level="INFO" message="${vMessage}"/>
 					</core:if>
 				</core:case>
 			</core:switch>
@@ -981,7 +981,7 @@
 				<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/>
 			</core:catch>		
 			<core:if test="${DebugLevel &gt; 0}">
-				<gel:log level="debug" message="Final Output File: ${vPackagingPath}/400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
+				<gel:log level="INFO" message="Final Output File: ${vPackagingPath}/400-DemoData_${vObject}_${vOrder}_${vIteration}_${inc}.xml"/> 
 			</core:if>
 
 			<!-- Inserting File Reference for Installation -->

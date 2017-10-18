@@ -15,15 +15,15 @@
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
 	
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="Start Script"/>
-		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
-		<gel:log level="debug" message=">>Persisted XOG URL   	: ${XOGURL}"/> 
-		<gel:log level="debug" message=">>Persisted LOG Folder	: ${XOGlogFolder}"/> 
-		<gel:log level="debug" message=">>Persisted WEB Folder	: ${XOGwebFolder}"/> 
-		<gel:log level="debug" message=">>Persisted WEB Path	: ${XOGwebPath}"/> 
-		<gel:log level="debug" message=">>Persisted DB Vendor	: ${dbVendor}"/> 
-		<gel:log level="debug" message=">>Persisted SessionID 	: ${sessionID}"/> 
-		<gel:log level="debug" message=">>Persisted DebugLevel	: ${DebugLevel}"/> 
+		<gel:log level="INFO" message="Start Script"/>
+		<gel:log level="INFO" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="INFO" message=">>Persisted XOG URL   	: ${XOGURL}"/> 
+		<gel:log level="INFO" message=">>Persisted LOG Folder	: ${XOGlogFolder}"/> 
+		<gel:log level="INFO" message=">>Persisted WEB Folder	: ${XOGwebFolder}"/> 
+		<gel:log level="INFO" message=">>Persisted WEB Path	: ${XOGwebPath}"/> 
+		<gel:log level="INFO" message=">>Persisted DB Vendor	: ${dbVendor}"/> 
+		<gel:log level="INFO" message=">>Persisted SessionID 	: ${sessionID}"/> 
+		<gel:log level="INFO" message=">>Persisted DebugLevel	: ${DebugLevel}"/> 
 	</core:if>
 
     <gel:setDataSource dbId="Niku"/>
@@ -49,25 +49,25 @@
 		<core:set var="vXOGJava">${row[10]}</core:set>
 		<core:set var="vIncludeCM">${row[11]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vProjectCode  : ${vProjectCode}"/> 
-			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
-			<gel:log level="debug" message="vInputPath   : ${vInputPath}"/> 
-			<gel:log level="debug" message="vOutputPath   : ${vOutputPath}"/> 
-			<gel:log level="debug" message="vXOGHome      : ${vXOGHome}"/> 
-			<gel:log level="debug" message="vServername   : ${vServername}"/> 
-			<gel:log level="debug" message="vXOGUser      : ${vXOGUser}"/> 
-			<gel:log level="debug" message="vXOGPassword  : ${vXOGPassword}"/> 
-			<gel:log level="debug" message="vXOGPort      : ${vXOGPort}"/> 
-			<gel:log level="debug" message="vSSL          : ${vSSL}"/> 
-			<gel:log level="debug" message="vInclude      : ${vInclude}"/> 
-			<gel:log level="debug" message="vXOGJava      : ${vXOGJava}"/> 
-			<gel:log level="debug" message="vIncludeCM    : ${vIncludeCM}"/> 
+			<gel:log level="INFO" message="vProjectCode  : ${vProjectCode}"/> 
+			<gel:log level="INFO" message="vPackagingPath: ${vPackagingPath}"/> 
+			<gel:log level="INFO" message="vInputPath   : ${vInputPath}"/> 
+			<gel:log level="INFO" message="vOutputPath   : ${vOutputPath}"/> 
+			<gel:log level="INFO" message="vXOGHome      : ${vXOGHome}"/> 
+			<gel:log level="INFO" message="vServername   : ${vServername}"/> 
+			<gel:log level="INFO" message="vXOGUser      : ${vXOGUser}"/> 
+			<gel:log level="INFO" message="vXOGPassword  : ${vXOGPassword}"/> 
+			<gel:log level="INFO" message="vXOGPort      : ${vXOGPort}"/> 
+			<gel:log level="INFO" message="vSSL          : ${vSSL}"/> 
+			<gel:log level="INFO" message="vInclude      : ${vInclude}"/> 
+			<gel:log level="INFO" message="vXOGJava      : ${vXOGJava}"/> 
+			<gel:log level="INFO" message="vIncludeCM    : ${vIncludeCM}"/> 
 		</core:if>
 	</core:forEach>
 
 	<core:set var="vFileName">${vPackagingPath}/${vProjectCode}Install.bat</core:set>
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="Creating File: ${vFileName}"/> 
+		<gel:log level="INFO" message="Creating File: ${vFileName}"/> 
 	</core:if>
 	
 	<file:writeFile fileName="${vFileName}" delimiter="" embedded="0">
@@ -113,7 +113,7 @@
 		</file:line>
 
 		<sql:query escapeText="false" var="vProjectFiles">
-			select filename, output_filename 
+			select filename, output_filename, ELEMENT_TYPE 
 			from ODF_CA_STPROJ_FILE
 			Where ODF_PARENT_ID = ${vStudioProjectID}
 			AND ELEMENT_TYPE != 'demodata'
@@ -123,11 +123,22 @@
 		<core:forEach items="${vProjectFiles.rowsByIndex}" var="row">
 			<core:set var="vFileIN">${row[0]}</core:set>
 			<core:set var="vFileOUT">${row[1]}</core:set>
+			<core:set var="vElement">${row[2]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="--vFileIN  : ${vFileIN}"/> 
-				<gel:log level="debug" message="--vFileOUT : ${vFileOUT}"/>
+				<gel:log level="INFO" message="--vFileIN  : ${vFileIN}; vFileOUT : ${vFileOUT}"/> 
+				<gel:log level="INFO" message="--vElement ${vElement}."/>
 			</core:if>
-			<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/${vFileOUT} -input ${vInputPath}/${vFileIN}</core:set>
+			<core:set var="remark"/>
+			<core:if test="${vElement=='StockObjectListView'}">
+				<core:set var="remark" value="REM "/>
+			</core:if>
+			<core:if test="${vElement=='StockObjectPropertiesView'}">
+				<core:set var="remark" value="REM "/>
+			</core:if>
+			<core:if test="${vElement=='stproj'}">
+				<core:set var="remark" value="REM "/>
+			</core:if>
+			<core:set var="vLine">${remark}Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/${vFileOUT} -input ${vInputPath}/${vFileIN}</core:set>
 			<file:line>
 				<file:column value="${vLine}"/>
 			</file:line>
@@ -136,69 +147,19 @@
 		<file:line>
 			<file:column value="${vLine}"/>
 		</file:line>
-	</file:writeFile>
-
-	<sql:query escapeText="false" var="vPostInstall">
-		select nvl(count(*),0)
-		from ODF_CA_STPROJ_FILE
-		Where ODF_PARENT_ID = ${vStudioProjectID}
-		AND ELEMENT_TYPE != 'demodata'
-		AND IS_POST_FILE = 1
-	</sql:query>
-	<core:forEach items="${vPostInstall.rowsByIndex}" var="row">
-		<core:set var="vHasPostInstall">${row[0]}</core:set>
-	</core:forEach>
-
-	<core:if test="${vHasPostInstall &gt; 0}">
-		<core:set var="vFileName">${vPackagingPath}/${vProjectCode}PostInstall.bat</core:set>
-		<core:if test="${DebugLevel &gt; 0}">
-			<gel:log level="debug" message="Creating Post File: ${vFileName}"/> 
-		</core:if>
-		
-		<file:writeFile fileName="${vFileName}" delimiter="" embedded="0">
-			<core:set var="vLine">@Echo Off</core:set>
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-			<core:set var="vLine">SET XOG_HOME=${vXOGHome}</core:set>
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-			<core:set var="vLine">SET SERVERNAME=${vServername}</core:set>
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-			<core:set var="vLine">SET PORTNUMBER=${vXOGPort}</core:set>
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-			<core:set var="vLine">SET SSLENABLED=${vSSL}</core:set>
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-			<core:set var="vLine">SET USERNAME=${vXOGUser}</core:set>
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-			<core:set var="vLine">SET PASSWORD=${vXOGPassword}</core:set>
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-			<core:set var="vLine">SET JAVA_HOME=${vXOGJava}</core:set>
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-			<core:set var="vLine">CD ${vInputPath}</core:set>
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-			<core:set var="vLine">IF NOT EXIST output md output</core:set>
-			<file:line>
-				<file:column value="${vLine}"/>
-			</file:line>
-
+		<sql:query escapeText="false" var="vPostInstall">
+			select nvl(count(*),0)
+			from ODF_CA_STPROJ_FILE
+			Where ODF_PARENT_ID = ${vStudioProjectID}
+			AND ELEMENT_TYPE != 'demodata'
+			AND IS_POST_FILE = 1
+		</sql:query>
+		<core:forEach items="${vPostInstall.rowsByIndex}" var="row">
+			<core:set var="vHasPostInstall">${row[0]}</core:set>
+		</core:forEach>
+		<core:if test="${vHasPostInstall &gt; 0}">
 			<sql:query escapeText="false" var="vProjectFiles">
-				select filename, output_filename 
+				select filename, output_filename, ELEMENT_TYPE 
 				from ODF_CA_STPROJ_FILE
 				Where ODF_PARENT_ID = ${vStudioProjectID}
 				AND ELEMENT_TYPE != 'demodata'
@@ -208,11 +169,22 @@
 			<core:forEach items="${vProjectFiles.rowsByIndex}" var="row">
 				<core:set var="vFileIN">${row[0]}</core:set>
 				<core:set var="vFileOUT">${row[1]}</core:set>
+				<core:set var="vElement">${row[2]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="--vFileIN  : ${vFileIN}"/> 
-					<gel:log level="debug" message="--vFileOUT : ${vFileOUT}"/>
+					<gel:log level="INFO" message="--vFileIN  : ${vFileIN}; vFileOUT : ${vFileOUT}"/> 
+					<gel:log level="INFO" message="--vElement ${vElement}."/>
 				</core:if>
-				<core:set var="vLine">Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/${vFileOUT} -input ${vInputPath}/${vFileIN}</core:set>
+				<core:set var="remark"/>
+				<core:if test="${vElement=='StockObjectListView'}">
+					<core:set var="remark" value="REM "/>
+				</core:if>
+				<core:if test="${vElement=='StockObjectPropertiesView'}">
+					<core:set var="remark" value="REM "/>
+				</core:if>
+				<core:if test="${vElement=='stproj'}">
+					<core:set var="remark" value="REM "/>
+				</core:if>
+				<core:set var="vLine">${remark}Call %XOG_HOME%/xog -servername %SERVERNAME% -portnumber %PORTNUMBER% -sslenabled %SSLENABLED%  -username %USERNAME% -password %PASSWORD% -output ${vOutputPath}/${vFileOUT} -input ${vInputPath}/${vFileIN}</core:set>
 				<file:line>
 					<file:column value="${vLine}"/>
 				</file:line>
@@ -221,7 +193,7 @@
 			<file:line>
 				<file:column value="${vLine}"/>
 			</file:line>
-		</file:writeFile>
-	</core:if>
-	
+		</core:if>
+	</file:writeFile>
+
 </gel:script>

@@ -18,9 +18,9 @@
 	<core:set var="vStudioElementID" value="${gel_objectInstanceId}"/>
 
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="Start Script"/>
-		<gel:log level="debug" message="Studio Element: ${vStudioElementID}"/> 
-		<gel:log level="debug" message="ProcessInstance: ${gel_processInstanceId}"/>
+		<gel:log level="INFO" message="Start Script"/>
+		<gel:log level="INFO" message="Studio Element: ${vStudioElementID}"/> 
+		<gel:log level="INFO" message="ProcessInstance: ${gel_processInstanceId}"/>
 	</core:if>
 
     <gel:setDataSource dbId="Niku"/>
@@ -35,7 +35,7 @@
 	<core:forEach items="${vElement.rowsByIndex}" var="row">
 		<core:set var="vMasterObjectCode">${row[0]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="MasterObject: ${vMasterObjectCode}"/>
+			<gel:log level="INFO" message="MasterObject: ${vMasterObjectCode}"/>
 		</core:if>
 	</core:forEach>
 	

@@ -17,10 +17,10 @@
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
 
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="Start Script"/>
-		<gel:log level="debug" message="Studio Project: ${vStudioProjectID}"/> 
-		<gel:log level="debug" message="ProcessInstance: ${gel_processInstanceId}"/>
-		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
+		<gel:log level="INFO" message="Start Script"/>
+		<gel:log level="INFO" message="Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="INFO" message="ProcessInstance: ${gel_processInstanceId}"/>
+		<gel:log level="INFO" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
 	</core:if>
 
     <gel:setDataSource dbId="Niku"/>

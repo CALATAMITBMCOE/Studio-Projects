@@ -17,13 +17,13 @@
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
 	
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="Start Script"/>
-		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
-		<gel:log level="debug" message=">>Persisted XOG URL   : ${XOGURL}"/> 
-		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/> 
-		<gel:log level="debug" message=">>Persisted WEB Folder: ${XOGwebFolder}"/> 
-		<gel:log level="debug" message=">>Persisted SessionID : ${sessionID}"/> 
-		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
+		<gel:log level="INFO" message="Start Script"/>
+		<gel:log level="INFO" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="INFO" message=">>Persisted XOG URL   : ${XOGURL}"/> 
+		<gel:log level="INFO" message=">>Persisted LOG Folder: ${XOGlogFolder}"/> 
+		<gel:log level="INFO" message=">>Persisted WEB Folder: ${XOGwebFolder}"/> 
+		<gel:log level="INFO" message=">>Persisted SessionID : ${sessionID}"/> 
+		<gel:log level="INFO" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
 	</core:if>
 
     <gel:setDataSource dbId="Niku"/>
@@ -37,9 +37,9 @@
 		<core:set var="vStudioProjectCODE">${row[1]}</core:set>
 		<core:set var="vInstance">${row[2]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
-			<gel:log level="debug" message="vStudioProjectCODE: ${vStudioProjectCODE}"/> 
-			<gel:log level="debug" message="vInstance: 			${vInstance}"/> 
+			<gel:log level="INFO" message="vPackagingPath: ${vPackagingPath}"/> 
+			<gel:log level="INFO" message="vStudioProjectCODE: ${vStudioProjectCODE}"/> 
+			<gel:log level="INFO" message="vInstance: 			${vInstance}"/> 
 		</core:if>
 	</core:forEach>
 
@@ -54,7 +54,7 @@
 		<core:set var="vObject">${row[0]}</core:set>
 		<core:set var="vOrder">${row[1]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vObject   : ${vObject}  Order :${vOrder}"/> 
+			<gel:log level="INFO" message="vObject   : ${vObject}  Order :${vOrder}"/> 
 		</core:if>
 
 		<!-- This is the XML Root Document-->
@@ -283,8 +283,8 @@
 				<core:set var="vQuery" value="${vQuery},${vCode}"/>
 			</core:if>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vCode  : ${vCode}"/> 
-				<gel:log level="debug" message="vQuery : ${vQuery}"/> 
+				<gel:log level="INFO" message="vCode  : ${vCode}"/> 
+				<gel:log level="INFO" message="vQuery : ${vQuery}"/> 
 			</core:if>
 			<core:set var="vIteration" value="1"/>
 		</core:forEach>
@@ -431,7 +431,7 @@
 		<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
 		<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/60-SeedData_${vObject}_${vOrder}.xml"/>
 		<core:if test="${DebugLevel &gt; 0}">
-			<gel:log level="debug" message="Final Output File: ${vPackagingPath}/60-SeedData_${vObject}_${vOrder}.xml"/> 
+			<gel:log level="INFO" message="Final Output File: ${vPackagingPath}/60-SeedData_${vObject}_${vOrder}.xml"/> 
 		</core:if>
 	</core:forEach>
 	
@@ -446,7 +446,7 @@
 		<core:set var="vObject">${row[0]}</core:set>
 		<core:set var="vOrder">${row[1]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vObject   : ${vObject}  Order :${vOrder}"/> 
+			<gel:log level="INFO" message="vObject   : ${vObject}  Order :${vOrder}"/> 
 		</core:if>
 
 		<!-- This is the XML Root Document-->
@@ -674,9 +674,9 @@
 				<core:set var="vQuery" value="${vQuery},${vCode}"/>
 			</core:if>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vCode  		: ${vCode}"/> 
-				<gel:log level="debug" message="vQuery 		: ${vQuery}"/> 
-				<gel:log level="debug" message="vObjectCode : ${vObjectCode}"/> 
+				<gel:log level="INFO" message="vCode  		: ${vCode}"/> 
+				<gel:log level="INFO" message="vQuery 		: ${vQuery}"/> 
+				<gel:log level="INFO" message="vObjectCode : ${vObjectCode}"/> 
 			</core:if>
 			<core:set var="vIteration" value="1"/>
 		</core:forEach>
@@ -774,7 +774,7 @@
 		
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:serialize var="${v_xml_root}" fileName="${XOGwebFolder}/XOGREAD_90-DemoData_${vStudioProjectID}_${vObject}_${vOrder}.xml"/>
-			<gel:log level="debug" message="XOG Results can be found at: ${XOGURL}/niku/XOGREAD_90-DemoData_${vStudioProjectID}_${vObject}_${vOrder}.xml"/> 
+			<gel:log level="INFO" message="XOG Results can be found at: ${XOGURL}/niku/XOGREAD_90-DemoData_${vStudioProjectID}_${vObject}_${vOrder}.xml"/> 
 		</core:if>
 			
 		<!-- Calling XOG-->
@@ -797,7 +797,7 @@
 		
 		<core:if test="${DebugLevel &gt; 1}">
 			<gel:serialize var="${runresult}" fileName="${XOGwebFolder}/XOGWRITE_90-DemoData_${vStudioProjectID}_${vObject}_${vOrder}.xml"/>
-			<gel:log level="debug" message="XOG Results can be found at: ${XOGURL}/niku/XOGWRITE_90-DemoData_${vStudioProjectID}_${vObject}_${vOrder}.xml"/> 
+			<gel:log level="INFO" message="XOG Results can be found at: ${XOGURL}/niku/XOGWRITE_90-DemoData_${vStudioProjectID}_${vObject}_${vOrder}.xml"/> 
 		</core:if>
 		
 		<core:if test="${vObject=='customObjectInstance'}">
@@ -826,7 +826,7 @@
 		<gel:set select="$runresult/soapenv:Envelope/soapenv:Body/NikuDataBus" var="vFinalOutput"/>
 		<gel:serialize var="${vFinalOutput}" fileName="${vPackagingPath}/90-DemoData_${vObject}_${vOrder}.xml"/>
 		<core:if test="${DebugLevel &gt; 0}">
-			<gel:log level="debug" message="Final Output File: ${vPackagingPath}/90-DemoData_${vObject}_${vOrder}.xml"/> 
+			<gel:log level="INFO" message="Final Output File: ${vPackagingPath}/90-DemoData_${vObject}_${vOrder}.xml"/> 
 		</core:if>
 	</core:forEach>
 

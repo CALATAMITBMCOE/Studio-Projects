@@ -18,8 +18,8 @@
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
 
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="Start Script"/>
-		<gel:log level="debug" message="Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="INFO" message="Start Script"/>
+		<gel:log level="INFO" message="Studio Project: ${vStudioProjectID}"/> 
 	</core:if>
 
     <gel:setDataSource dbId="Niku"/>
@@ -35,7 +35,7 @@
 		<core:set var="vCaptionIntID">${row[2]}</core:set>
 
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="Atualizando: CaptionID=${vCaptionIntID}, Name=${vCaptionName}, Desc=${vCaptionDesc}"/>
+			<gel:log level="INFO" message="Atualizando: CaptionID=${vCaptionIntID}, Name=${vCaptionName}, Desc=${vCaptionDesc}"/>
 		</core:if>
 		
 		<sql:update>

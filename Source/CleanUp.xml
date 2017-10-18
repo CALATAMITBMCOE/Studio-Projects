@@ -16,15 +16,15 @@
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
 
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="Start Script"/>
-		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
-		<gel:log level="debug" message=">>Persisted XOG URL   	: ${XOGURL}"/> 
-		<gel:log level="debug" message=">>Persisted LOG Folder	: ${XOGlogFolder}"/> 
-		<gel:log level="debug" message=">>Persisted WEB Folder	: ${XOGwebFolder}"/> 
-		<gel:log level="debug" message=">>Persisted WEB Path	: ${XOGwebPath}"/> 
-		<gel:log level="debug" message=">>Persisted DB Vendor	: ${dbVendor}"/> 
-		<gel:log level="debug" message=">>Persisted SessionID 	: ${sessionID}"/> 
-		<gel:log level="debug" message=">>Persisted DebugLevel	: ${DebugLevel}"/> 
+		<gel:log level="INFO" message="Start Script"/>
+		<gel:log level="INFO" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="INFO" message=">>Persisted XOG URL   	: ${XOGURL}"/> 
+		<gel:log level="INFO" message=">>Persisted LOG Folder	: ${XOGlogFolder}"/> 
+		<gel:log level="INFO" message=">>Persisted WEB Folder	: ${XOGwebFolder}"/> 
+		<gel:log level="INFO" message=">>Persisted WEB Path	: ${XOGwebPath}"/> 
+		<gel:log level="INFO" message=">>Persisted DB Vendor	: ${dbVendor}"/> 
+		<gel:log level="INFO" message=">>Persisted SessionID 	: ${sessionID}"/> 
+		<gel:log level="INFO" message=">>Persisted DebugLevel	: ${DebugLevel}"/> 
 	</core:if>
 	
 	<gel:setDataSource dbId="Niku"/>
@@ -47,16 +47,16 @@
 		<core:set var="vInclude">${row[8]}</core:set>
 		<core:set var="vPublish">${row[9]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vProjectCode  : ${vProjectCode}"/> 
-			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
-			<gel:log level="debug" message="vOutputPath   : ${vOutputPath}"/> 
-			<gel:log level="debug" message="vXOGHome      : ${vXOGHome}"/> 
-			<gel:log level="debug" message="vServername   : ${vServername}"/> 
-			<gel:log level="debug" message="vXOGUser      : ${vXOGUser}"/> 
-			<gel:log level="debug" message="vXOGPassword  : ${vXOGPassword}"/> 
-			<gel:log level="debug" message="vXOGPort      : ${vXOGPort}"/> 
-			<gel:log level="debug" message="vInclude      : ${vInclude}"/> 
-			<gel:log level="debug" message="vPublish      : ${vPublish}"/> 
+			<gel:log level="INFO" message="vProjectCode  : ${vProjectCode}"/> 
+			<gel:log level="INFO" message="vPackagingPath: ${vPackagingPath}"/> 
+			<gel:log level="INFO" message="vOutputPath   : ${vOutputPath}"/> 
+			<gel:log level="INFO" message="vXOGHome      : ${vXOGHome}"/> 
+			<gel:log level="INFO" message="vServername   : ${vServername}"/> 
+			<gel:log level="INFO" message="vXOGUser      : ${vXOGUser}"/> 
+			<gel:log level="INFO" message="vXOGPassword  : ${vXOGPassword}"/> 
+			<gel:log level="INFO" message="vXOGPort      : ${vXOGPort}"/> 
+			<gel:log level="INFO" message="vInclude      : ${vInclude}"/> 
+			<gel:log level="INFO" message="vPublish      : ${vPublish}"/> 
 		</core:if>
 	</core:forEach>
 
@@ -66,14 +66,14 @@
 			<core:arg type="java.lang.String" value="StudioProjects-Temp"/>
 		</core:invoke>
 		<core:if test="${DebugLevel &gt; 0}">
-			<gel:log level="debug" message="Temp Folder at position ${vTempFolderUsed} in ${vPackagingPath}."/>
+			<gel:log level="INFO" message="Temp Folder at position ${vTempFolderUsed} in ${vPackagingPath}."/>
 		</core:if>
 
 		<core:if test="${vTempFolderUsed != -1}">
 			<!-- A temp folder was used and must be deleted -->
 			<core:set var="dir_to_delete">${vPackagingPath}</core:set>
 			<core:if test="${DebugLevel &gt; 0}">
-				<gel:log level="debug" message="Temp Folder to delete: ${dir_to_delete}."/>
+				<gel:log level="INFO" message="Temp Folder to delete: ${dir_to_delete}."/>
 			</core:if>
 			<util:file name="${dir_to_delete}" var="foldervar" />
 			<core:set var="listOfFiles" value="${foldervar.listFiles()}" />
@@ -81,19 +81,19 @@
 				<core:set var="vFile">${row}</core:set>
 				<util:file name="${vFile}" var="filevar" />
 				<core:if test="${DebugLevel &gt; 0}">
-					<gel:log level="debug" message="File to Delete : ${vFile}"/>
+					<gel:log level="INFO" message="File to Delete : ${vFile}"/>
 				</core:if>
 				<core:set var="deleteDone" value="${filevar.delete()}" />
 				<core:if test="${DebugLevel &gt; 0}">
-					<gel:log level="debug" message="Deleted : ${vFile}"/>
+					<gel:log level="INFO" message="Deleted : ${vFile}"/>
 				</core:if>
 			</core:forEach>
 			<core:if test="${DebugLevel &gt; 0}">
-				<gel:log level="debug" message="Deleted Folder : ${dir_to_delete}"/>
+				<gel:log level="INFO" message="Deleted Folder : ${dir_to_delete}"/>
 			</core:if>
 			<core:set var="deleteDone" value="${foldervar.delete()}" />
 			<core:if test="${DebugLevel &gt; 0}">
-				<gel:log level="debug" message="Deleted : ${dir_to_delete}"/>
+				<gel:log level="INFO" message="Deleted : ${dir_to_delete}"/>
 			</core:if>
 		</core:if>
 	</core:if>

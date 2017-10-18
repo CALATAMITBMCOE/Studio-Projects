@@ -16,12 +16,12 @@
 	<core:set var="vStudioProjectID" value="${gel_objectInstanceId}"/>
 	
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="Start Script"/>
-		<gel:log level="debug" message=">>Studio Project: ${vStudioProjectID}"/> 
-		<gel:log level="debug" message=">>Persisted XOG URL  : ${XOGURL}"/> 
-		<gel:log level="debug" message=">>Persisted LOG Folder: ${XOGlogFolder}"/> 
-		<gel:log level="debug" message=">>Persisted SessionID: ${sessionID}"/> 
-		<gel:log level="debug" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
+		<gel:log level="INFO" message="Start Script"/>
+		<gel:log level="INFO" message=">>Studio Project: ${vStudioProjectID}"/> 
+		<gel:log level="INFO" message=">>Persisted XOG URL  : ${XOGURL}"/> 
+		<gel:log level="INFO" message=">>Persisted LOG Folder: ${XOGlogFolder}"/> 
+		<gel:log level="INFO" message=">>Persisted SessionID: ${sessionID}"/> 
+		<gel:log level="INFO" message=">>Persisted DebugLevel: ${DebugLevel}"/> 
 	</core:if>
 
     <gel:setDataSource dbId="Niku"/>
@@ -37,10 +37,10 @@
 		<core:set var="vExport">${row[2]}</core:set>
 		<core:set var="vIncludeCM">${row[3]}</core:set>
 		<core:if test="${DebugLevel &gt; 1}">
-			<gel:log level="debug" message="vProjectCode  : ${vProjectCode}"/> 
-			<gel:log level="debug" message="vPackagingPath: ${vPackagingPath}"/> 
-			<gel:log level="debug" message="vExport       : ${vExport}"/> 
-			<gel:log level="debug" message="vIncludeCM    : ${vIncludeCM}"/> 
+			<gel:log level="INFO" message="vProjectCode  : ${vProjectCode}"/> 
+			<gel:log level="INFO" message="vPackagingPath: ${vPackagingPath}"/> 
+			<gel:log level="INFO" message="vExport       : ${vExport}"/> 
+			<gel:log level="INFO" message="vIncludeCM    : ${vIncludeCM}"/> 
 		</core:if>
 	</core:forEach>
 
@@ -55,7 +55,7 @@
 
 	<core:set var="vFileName">${vPackagingPath}/${vProjectCode}-build.properties</core:set>
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="Creating File: ${vFileName}"/> 
+		<gel:log level="INFO" message="Creating File: ${vFileName}"/> 
 	</core:if>
 	
 	<core:invokeStatic var="config" className="com.niku.union.config.ConfigurationManager" method="getInstance"/>
@@ -73,7 +73,7 @@
 	<core:set var="publishdir">${vInstallDir}/webroot/StudioPackages/${vProjectCode}</core:set>
 	<core:set var="vZipName">${publishdir}/${vProjectCode}.zip</core:set>
 	<core:if test="${DebugLevel &gt; 0}">
-		<gel:log level="debug" message="vZipName: ${vZipName}"/> 
+		<gel:log level="INFO" message="vZipName: ${vZipName}"/> 
 	</core:if>
 
 	<file:writeFile fileName="${vFileName}" delimiter="" embedded="0">
@@ -110,7 +110,7 @@
 			<core:forEach items="${vCount.rowsByIndex}" var="row">
 				<core:set var="vTest">${row[0]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/01-StaticLookup.xml,\</core:set>
@@ -128,8 +128,8 @@
 				<core:set var="vObjCode">${row[0]}</core:set>
 				<core:set var="vTest">${row[1]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vObjCode: ${vObjCode}"/> 
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vObjCode: ${vObjCode}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/02-Objects_${vObjCode}.xml,\</core:set>
@@ -147,8 +147,8 @@
 				<core:set var="vMaster">${row[0]}</core:set>
 				<core:set var="vTest">${row[1]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vMaster: ${vMaster}"/> 
-					<gel:log level="debug" message="vTest  : ${vTest}"/> 
+					<gel:log level="INFO" message="vMaster: ${vMaster}"/> 
+					<gel:log level="INFO" message="vTest  : ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/03-SubObjects_${vMaster}.xml,\</core:set>
@@ -165,7 +165,7 @@
 			<core:forEach items="${vCount.rowsByIndex}" var="row">
 				<core:set var="vTest">${row[0]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/04-DynamicLookup.xml,\</core:set>
@@ -182,7 +182,7 @@
 			<core:forEach items="${vCount.rowsByIndex}" var="row">
 				<core:set var="vTest">${row[0]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/05-Views.xml,\</core:set>
@@ -200,7 +200,7 @@
 				<core:set var="vMaster">${row[0]}</core:set>
 				<core:set var="vTest">${row[1]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/06A-StockObject_${vMaster}.xml,\</core:set>
@@ -218,7 +218,7 @@
 				<core:set var="vMaster">${row[0]}</core:set>
 				<core:set var="vTest">${row[1]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/06B-StockSubObject_${vMaster}.xml,\</core:set>
@@ -236,7 +236,7 @@
 				<core:set var="vMaster">${row[0]}</core:set>
 				<core:set var="vTest">${row[1]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/06C-StockObjectCustomAttributes_${vMaster}.xml,\</core:set>
@@ -264,7 +264,7 @@
 				<core:set var="vPartitionOrdr">${row[3]}</core:set>
 				<core:set var="vTest">1</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/06D-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml,\</core:set>
@@ -293,7 +293,7 @@
 				<core:set var="vPartitionOrdr">${row[3]}</core:set>
 				<core:set var="vTest">1</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml,\</core:set>
@@ -322,7 +322,7 @@
 				<core:set var="vPartitionOrdr">${row[3]}</core:set>
 				<core:set var="vTest">1</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/06E-StockViews_${vObjectCode}_${vViewCode}_${vPartitionOrdr}-${vPartitionCode}.xml,\</core:set>
@@ -339,7 +339,7 @@
 			<core:forEach items="${vCount.rowsByIndex}" var="row">
 				<core:set var="vTest">${row[0]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/07-Processes.xml,\</core:set>
@@ -356,7 +356,7 @@
 			<core:forEach items="${vCount.rowsByIndex}" var="row">
 				<core:set var="vTest">${row[0]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/08-Queries.xml,\</core:set>
@@ -373,7 +373,7 @@
 			<core:forEach items="${vCount.rowsByIndex}" var="row">
 				<core:set var="vTest">${row[0]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/09-Portlets.xml,\</core:set>
@@ -390,7 +390,7 @@
 			<core:forEach items="${vCount.rowsByIndex}" var="row">
 				<core:set var="vTest">${row[0]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/10-Pages.xml,\</core:set>
@@ -409,7 +409,7 @@
 			<core:set var="vGroupCode">${row[0]}</core:set>
 			<core:set var="vTest">${row[1]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
+				<gel:log level="INFO" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
 				<core:set var="vLine">${vPackagingPath}/11-Groups_${vGroupCode}.xml,\</core:set>
@@ -426,7 +426,7 @@
 		<core:forEach items="${vCount.rowsByIndex}" var="row">
 			<core:set var="vTest">${row[0]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
+				<gel:log level="INFO" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
 				<core:set var="vLine">${vPackagingPath}/12-Menu.xml,\</core:set>
@@ -445,7 +445,7 @@
 			<core:set var="vOBSCode">${row[0]}</core:set>
 			<core:set var="vTest">${row[1]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
+				<gel:log level="INFO" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
 				<core:set var="vLine">${vPackagingPath}/13-OBS_${vOBSCode}.xml,\</core:set>
@@ -463,7 +463,7 @@
 			<core:set var="vUITheme">${row[0]}</core:set>
 			<core:set var="vTest">${row[1]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
+				<gel:log level="INFO" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
 				<core:set var="vLine">${vPackagingPath}/14-UITheme_${vUITheme}.xml,\</core:set>
@@ -482,8 +482,8 @@
 				<core:set var="vObjCode">${row[0]}</core:set>
 				<core:set var="vTest">${row[1]}</core:set>
 				<core:if test="${DebugLevel &gt; 1}">
-					<gel:log level="debug" message="vObjCode: ${vObjCode}"/> 
-					<gel:log level="debug" message="vTest: ${vTest}"/> 
+					<gel:log level="INFO" message="vObjCode: ${vObjCode}"/> 
+					<gel:log level="INFO" message="vTest: ${vTest}"/> 
 				</core:if>
 				<core:if test="${vTest &gt; 0}">
 					<core:set var="vLine">${vPackagingPath}/15-Objects_${vObjCode}.xml,\</core:set>
@@ -505,7 +505,7 @@
 			<core:set var="vOrder">${row[1]}</core:set>
 			<core:set var="vTest">${row[2]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vObject: ${vObject}  vOrder: ${vOrder}   vTest: ${vTest}"/> 
+				<gel:log level="INFO" message="vObject: ${vObject}  vOrder: ${vOrder}   vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
 				<core:set var="vLine">${vPackagingPath}/60-SeedData_${vObject}_${vOrder}.xml,\</core:set>
@@ -526,7 +526,7 @@
 			<core:set var="vOrder">${row[1]}</core:set>
 			<core:set var="vTest">${row[2]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vObject: ${vObject}  vOrder: ${vOrder}   vTest: ${vTest}"/> 
+				<gel:log level="INFO" message="vObject: ${vObject}  vOrder: ${vOrder}   vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
 				<core:set var="vLine">${vPackagingPath}/90-DemoData_${vObject}_${vOrder}.xml,\</core:set>
@@ -556,7 +556,7 @@
 		<core:forEach items="${vCount.rowsByIndex}" var="row">
 			<core:set var="vTest">${row[0]}</core:set>
 			<core:if test="${DebugLevel &gt; 1}">
-				<gel:log level="debug" message="vTest: ${vTest}"/> 
+				<gel:log level="INFO" message="vTest: ${vTest}"/> 
 			</core:if>
 			<core:if test="${vTest &gt; 0}">
 				<core:set var="vLine">${vPackagingPath}/${vProjectCode}Install_Demo.bat,\</core:set>

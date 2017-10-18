@@ -282,7 +282,6 @@
 			</core:if>
 				
 			<!--Create Publish folder under WebRoot -->
-			<core:set var="publishdir" value="${XOGlogFolder}"/>
 			<core:if test="${vPublish == 1}">
 				<core:set var="publishdir">${vInstallDir}/webroot/StudioPackages/${vProjectCode}</core:set>
 				<util:file name="${publishdir}" var="newpubdir" />
